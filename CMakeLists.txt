@@ -1,0 +1,50 @@
+CMAKE_MINIMUM_REQUIRED(VERSION 2.4)
+PROJECT(PicasaFUSE)
+INCLUDE(CheckIncludeFile)
+INCLUDE(CheckLibraryExists)
+INCLUDE(UsePkgConfig)
+
+SET(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules")
+FIND_PACKAGE(CURL REQUIRED)
+
+INCLUDE_DIRECTORIES(
+	${CURL_INCLUDE_DIRS}
+	${CMAKE_CURRENT_SOURCE_DIR} 
+	${CMAKE_CURRENT_BINARY_DIR}
+)
+
+
+FILE(GLOB TINY_XML_SRC ticpp/*.cpp)
+
+SET(PICASA_SRC
+	picasaAlbum.cpp
+	picasaAPI.cpp
+	curl_util.cpp
+)
+
+ADD_EXECUTABLE(testAPI
+        testAPI.cpp
+        ${PICASA_SRC}
+        ${TINY_XML_SRC}
+)
+
+ 
+LINK_DIRECTORIES(
+	${CMAKE_CURRENT_BINARY_DIR}/ticpp
+) 
+
+
+TARGET_LINK_LIBRARIES(testAPI
+        ${CURL_LIBRARIES}
+)
+
+ADD_DEFINITIONS(
+        -DDEBUG
+        -g
+        -DTIXML_USE_STL
+        -DTIXML_USE_TICPP
+)
+
+INSTALL(TARGETS testAPI
+        DESTINATION "bin"
+)
