@@ -16,16 +16,18 @@
 
 #include "picasaAPI.h"
 #include "picasaAlbum.h"
+#include "picasaPhoto.h"
 
 using namespace std;
 
 int main( int argc, char **argv ) { 
   if ( argc < 3 ) { 
-    cerr << " usage: " << argv[0] << " e-mail {list|album|get|albumEdit|delete} [URL] [albumTitle] [description]\n";
+    cerr << " usage: " << argv[0] << " e-mail {list|album|get|albumEdit|delete|upload} [URL] [ [albumTitle] [description] | [fileName] ]\n";
     return -1;
   }
   string user( argv[1] ), appName( argv[9] ), command( argv[2] );
   string newTitle, description;
+  string fileName;
   if ( command.compare("list") != 0 && argc == 3 ) { 
     cerr << " usage: " << argv[0] << " e-mail {list|album|get} [URL]\n";
     cerr << " the album and get commands need an URL\n";
@@ -40,6 +42,15 @@ int main( int argc, char **argv ) {
     newTitle=argv[4];
     description=argv[5];
   }
+
+  if ( command.compare("upload") == 0 ) { 
+    if ( argc < 5 ) { 
+      cerr << " usage: " << argv[0] << " e-mail {list|album|get|albumEdit|delete|upload} [URL] [ [albumTitle] [description] | [fileName] ]\n";
+      return -1;
+    }
+    fileName = argv[4];
+  }
+
 
   string password( getpass("Enter your password:") );
 //  cout<<"Enter your password:";
@@ -73,6 +84,9 @@ int main( int argc, char **argv ) {
       album = new picasaAlbum( &api, URL );
       album->deleteAlbum();
       delete album;
+    } else if ( command.compare("upload") == 0 ) { 
+      album = new picasaAlbum( &api, URL );
+      picasaPhoto *photo = new picasaPhoto( album, fileName );
     } else { 
       cerr << " usage: " << argv[0] << " e-mail {list|album|get} [URL]\n";
       return -1;

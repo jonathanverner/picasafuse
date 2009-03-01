@@ -30,6 +30,19 @@ void picasaAlbum::loadFromAtom( const std::string &feedURL ) {
   loadFromXML( api->GET( URL ) );
 }
 
+
+std::string picasaAlbum::getUser() const { 
+  int userStart = selfURL.find("user/")+5;
+  int userEnd = selfURL.find_first_of("/",userStart);
+  return selfURL.substr(userStart,userEnd-userStart);
+}
+
+std::string picasaAlbum::getAlbumId() const { 
+  int idStart = selfURL.find("/albumid/")+9;
+  int idEnd = selfURL.find_first_not_of("0123456789",idStart);
+  return selfURL.substr(idStart,idEnd-idStart);
+}
+
 void picasaAlbum::loadFromXML( const std::string &xmlText ) { 
   xml = new ticpp::Document();
   try { 

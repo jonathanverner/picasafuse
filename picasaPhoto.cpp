@@ -32,7 +32,7 @@ bool picasaPhoto::isURL( const std::string &fileName ) {
 
 
 void picasaPhoto::loadFromXML( const ticpp::Document *xmlDoc ) { 
-  ticpp::Element *root = xmlDoc->FirstChild()->ToElement();
+  ticpp::Element *root = xmlDoc->FirstChild("entry")->ToElement();
   ticpp::Iterator< ticpp::Element > links("link");
   for( links = links.begin( root ); links != links.end(); links++ ) {
     if ( links->GetAttribute( "rel" ).compare( "edit-media" ) == 0 )
@@ -89,8 +89,13 @@ picasaPhoto::picasaPhoto( picasaAlbum *Album, const std::string &fileNameOrURL )
       URL+="?authkey="+album->getAuthKey();
     string xmlText = album->getAPI()->GET( URL );
     loadFromXML( xmlText );
-  } else { 
-    cerr << "picasaPhoto::picasaPhoto(...,"<<fileNameOrURL<<"): Posting new photos not implemented yet.\n";
+  } else {
+    if ( fileNameOrURL.find(".jpg") == string::npos ) { 
+      cerr << "picasaPhoto::picasaPhoto(...,"<<fileNameOrURL<<"): Only jpeg's allowed at the moment.\n";
+    }
+    list<string> hdrs;
+    hdrs.push_back("Slug: "+fileNameOrURL );
+    loadFromXML(album->getAPI()->POST_FILE( "http://picasaweb.google.com/data/feed/api/user/"+album->getUser()+"/albumid/"+album->getAlbumId(), fileNameOrURL, "image/jpeg", hdrs ));
   }
 }
 

@@ -22,7 +22,6 @@ namespace ticpp {
   class Document;
 }
 
-
 class picasaAlbum { 
 	public:
 		
@@ -74,6 +73,8 @@ class picasaAlbum {
 		std::string getModDate() const { return modDate; };
 		std::string getDescription() const { return description; };
 		std::string getAuthKey() const { return authKey; };
+		std::string getUser() const;
+		std::string getAlbumId() const;
 
 		enum accessType getAccessType() const { return access; };
 
@@ -83,8 +84,6 @@ class picasaAlbum {
 
 		friend std::ostream & operator <<( std::ostream &out, picasaAlbum album );
 		friend class picasaPhoto;
-
-
 };
 
 
