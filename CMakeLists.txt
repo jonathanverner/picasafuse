@@ -19,6 +19,7 @@ FILE(GLOB TINY_XML_SRC ticpp/*.cpp)
 SET(PICASA_SRC
 	picasaAlbum.cpp
 	picasaAPI.cpp
+	picasaPhoto.cpp
 	curl_util.cpp
 )
 

@@ -25,14 +25,15 @@
 
 using namespace std;
 
-bool isURL( const std::string &fileName ) { 
+bool picasaPhoto::isURL( const std::string &fileName ) { 
   if ( fileName.find( "http://" ) == 0 || fileName.find( "https://" ) == 0 ) return true;
   return false;
 }
 
 
-picasaPhoto::loadFromXML( const ticpp::Document *xmlDoc ) { 
-  ticpp::Element *root = xmlDoc->FirstChild();
+void picasaPhoto::loadFromXML( const ticpp::Document *xmlDoc ) { 
+  ticpp::Element *root = xmlDoc->FirstChild()->ToElement();
+  ticpp::Iterator< ticpp::Element > links("link");
   for( links = links.begin( root ); links != links.end(); links++ ) {
     if ( links->GetAttribute( "rel" ).compare( "edit-media" ) == 0 )
       editURL = links->GetAttribute( "href" );  
@@ -41,9 +42,11 @@ picasaPhoto::loadFromXML( const ticpp::Document *xmlDoc ) {
     if ( links->GetAttribute( "rel" ).compare( "self" ) == 0 )
       selfURL = links->GetAttribute( "href" );
   }
-  extractAuthKey( editURL );
-  extractAuthKey( altURL );
-  extractAuthKey( selfURL );
+  
+  picasaAPI::dropAuthKey( editURL );
+  picasaAPI::dropAuthKey( altURL );
+  picasaAPI::dropAuthKey( selfURL );
+
   photoURL = root->FirstChildElement( "content" )->GetAttribute( "src" );
   fileName = root->FirstChildElement( "title" )->GetText(false);
   caption = root->FirstChildElement( "summary" )->GetText(false);
@@ -51,7 +54,7 @@ picasaPhoto::loadFromXML( const ticpp::Document *xmlDoc ) {
   size = picasaAPI::string2int( root->FirstChildElement("gphoto:size")->GetText(false) );
 }
 
-picasaPhoto::loadFromXML( const std::string &xmlText ) { 
+void picasaPhoto::loadFromXML( const std::string &xmlText ) { 
   xml = new ticpp::Document();
   try { 
     xml->Parse( xmlText );
@@ -63,13 +66,13 @@ picasaPhoto::loadFromXML( const std::string &xmlText ) {
 }
 
 
-picasaPhoto::picasaPhoto( picasaAlbum *Album, const ticpp::Element *xmlEntry ):
+picasaPhoto::picasaPhoto( picasaAlbum *Album, ticpp::Element *xmlEntry ):
 	album(Album) 
 {
   syncPol = album->syncPol;
   try { 
     xml = new ticpp::Document();
-    xml->LinkEndChild( xmlEntry->Clone() );
+    xml->InsertEndChild( *xmlEntry );
     loadFromXML( xml );
   } catch ( ticpp::Exception &ex ) { 
     std::cerr << "picasaPhoto::picasaPhoto( ..., xmlEntry ): " << ex.what() << "\n";
@@ -97,12 +100,12 @@ void picasaPhoto::setUpdatePolicy( const enum picasaAlbum::updatePolicy policy )
 
 bool picasaPhoto::modified() { 
   upToDate = false;
-  if ( syncPol == AUTO_SYNC ) return update();
+  if ( syncPol == picasaAlbum::AUTO_SYNC ) return update();
   return true;
 }
 
 bool picasaPhoto::update() { 
-  if ( syncPol == NO_SYNC ) return false;
+  if ( syncPol == picasaAlbum::NO_SYNC ) return false;
   if ( upToDate ) return true;
   if ( ! album->getAPI()->loggedIn() ) { 
     cerr<<"picasaAlbum::update: Not logged in!\n";
@@ -116,19 +119,19 @@ bool picasaPhoto::update() {
   loadFromXML(api->PUT( editURL, oss.str() ));
   return true;*/
 }
-void picasaPhoto::setCaption( const std::string &c ) { 
+bool picasaPhoto::setCaption( const std::string &c ) { 
   caption = c;
   xml->FirstChildElement()->FirstChildElement( "summary" )->SetText( caption );
   return modified();
 };
 
-void picasaPhoto::setFileName( const std::string &f ) {
+bool picasaPhoto::setFileName( const std::string &f ) {
   fileName = f;
   xml->FirstChildElement()->FirstChildElement( "title" )->SetText( fileName );
   return modified();
 };
 
-void picasaPhoto::setCheckSum( const std::string &c ) { 
+bool picasaPhoto::setCheckSum( const std::string &c ) { 
   checkSum = c;
   xml->FirstChildElement()->FirstChildElement( "gphoto:checksum" )->SetText( checkSum );
   return modified();
@@ -165,7 +168,6 @@ bool picasaPhoto::uploadPhoto( const std::string &fileName ) {
 }
 
 bool picasaPhoto::downloadPhoto( const std::string &fileName ) { 
-  cerr<<"picasaPhoto::downloadPhoto(): Downloading photos not implemented yet;\n";
-  return false;
+  return album->getAPI()->DOWNLOAD( photoURL, fileName );
 }
 

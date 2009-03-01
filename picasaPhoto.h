@@ -17,11 +17,13 @@
 #include <string>
 #include <list>
 
+#include "picasaAlbum.h"
+
 namespace ticpp { 
+  class Document;
   class Element;
 }
 
-class picasaAlbum;
 
 class picasaPhoto { 
 	private:
@@ -37,7 +39,7 @@ class picasaPhoto {
 		bool modified();
 
 
-		picasaPhoto( picasaAlbum *album, const ticpp::Element *xmlEntry );
+		picasaPhoto( picasaAlbum *album, ticpp::Element *xmlEntry );
 
 		bool isURL( const std::string &fileName );
 		void loadFromXML( const std::string &xmlText );
@@ -47,16 +49,16 @@ class picasaPhoto {
 
 		picasaPhoto( picasaAlbum *album, const std::string &fileNameOrURL );
 
-		void setCaption( const std::string &caption );
-		void setFileName( const std::string &fileName );
-		void setCheckSum( const std::string &checkSum );
+		bool setCaption( const std::string &caption );
+		bool setFileName( const std::string &fileName );
+		bool setCheckSum( const std::string &checkSum );
 
 		bool uploadPhoto( const std::string &fileName );
 		bool downloadPhoto( const std::string &fileName );
 
 		bool deletePhoto();
 
-		void setUpdatePolicy(const enum updatePolicy policy);
+		void setUpdatePolicy(const enum picasaAlbum::updatePolicy policy);
 		bool update();
 
 
@@ -65,12 +67,11 @@ class picasaPhoto {
 		std::string getCheckSum();
 
 		size_t getSize() { return size; }
-		std::string photoURL() { return photoURL; }
+		std::string URL() { return photoURL; }
 
 		int numOfComments() { return comments.size(); };
 		bool addComment( const std::string &comment );
 		std::list< std::string > allComments() { return comments; }
-		std::string getComment( int i ) { if ( i >=0 && i < comments.size() ) return comments[i]; return "";};
 
 		friend class picasaAlbum;
 };
