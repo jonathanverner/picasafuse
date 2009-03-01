@@ -1,8 +1,8 @@
-#ifndef _curl_util_H
-#define _curl_util_H
+#ifndef _curlRequest_H
+#define _curlRequest_H
 
 /***************************************************************
- * curl_util.h
+ * curlRequest.h
  * @Author:      Jonathan Verner (jonathan.verner@matfyz.cz)
  * @License:     GPL v2.0 or later
  * @Created:     2009-02-27.
@@ -49,4 +49,4 @@ class curlRequest {
 };
 
 
-#endif /* _curl_util_H */
+#endif /* _curlRequest_H */

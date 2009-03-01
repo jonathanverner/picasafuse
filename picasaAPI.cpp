@@ -13,7 +13,7 @@
 
 #include "picasaAPI.h"
 
-#include "curl_util.h"
+#include "curlRequest.h"
 
 
 #ifndef TIXML_USE_TICPP

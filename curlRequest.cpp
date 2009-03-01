@@ -1,5 +1,5 @@
 /***************************************************************
- * curl_util.cpp
+ * curlRequest.cpp
  * @Author:      Jonathan Verner (jonathan.verner@matfyz.cz)
  * @License:     GPL v2.0 or later
  * @Created:     2009-02-27.
@@ -12,13 +12,12 @@
  ***************************************************************/
 
 
-#include "curl_util.h"
+#include "curlRequest.h"
  
 #include <curl/curl.h>
 
 #include <stdio.h>
 #include <iostream>
-#include <string>
 
 using namespace std;
 
