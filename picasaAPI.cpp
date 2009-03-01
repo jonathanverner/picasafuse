@@ -180,6 +180,24 @@ string picasaAPI::POST( const string &URL, const string &data ) {
   return request.getResponse();
 }
 
+string picasaAPI::POST_FILE( const string &URL, const string &file, const string &contentType, list<string> &headers ) { 
+ curlRequest request( curl );
+  if ( haveToken() )  request.addHeader( "Authorization: GoogleLogin auth="+authToken );
+  request.setType( curlRequest::POST );
+  request.setURL( URL );
+  request.setInFile( file, contentType );
+  for( list<string>::iterator hdr = headers.begin(); hdr != headers.end(); hdr++ )
+    request.addHeader( *hdr );
+  request.perform();
+  if ( request.getStatus() != 200 && request.getStatus() != 201 ) { 
+    cerr << "picasaAPI::POST_FILE: "<<request.getResponse() << " (response status "<<request.getStatus() << ")\n";
+    cerr << "picasaAPI::POST_FILE to " << URL << " of " << file << " ("<<contentType<<")\n";
+    return "";
+  }
+  return request.getResponse();
+}
+
+
 
 list<string> picasaAPI::albumList( const string &user ) {
   string URL = "http://picasaweb.google.com/data/feed/api/user/"+user;

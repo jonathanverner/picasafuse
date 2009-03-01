@@ -44,6 +44,7 @@ class picasaAPI {
 		std::string DELETE( const std::string &feedURL );
 		std::string PUT( const std::string &feedURL, const std::string &data );
 		std::string POST( const std::string &feedURL, const std::string &data );
+		std::string POST_FILE( const std::string &feedURL, const std::string &fileName, const std::string &contentType, std::list< std::string > &headers );
 
 
 	public:

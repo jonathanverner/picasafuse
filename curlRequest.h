@@ -27,7 +27,7 @@ class curlRequest {
 	private:
 		void *curl;
 		enum requestType request;
-		std::string URL, body, postFields, outFile;
+		std::string URL, body, postFields, outFile, inFile;
 		std::list< std::string > headers;
 
 		std::string response;
@@ -41,6 +41,7 @@ class curlRequest {
 		void setURL( const std::string &url ) { URL = url; };
 		void setType( const enum requestType reqType ) { request=reqType; };
 		void setOutFile( const std::string &fileName ) { outFile = fileName; };
+		void setInFile( const std::string &fileName, const std::string contentType ){ inFile=fileName; headers.push_back("Content-Type: "+contentType);};
 
 		bool perform();
 

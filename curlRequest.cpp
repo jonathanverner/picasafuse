@@ -62,21 +62,29 @@ bool curlRequest::perform() {
     cerr << "getFeed() Error: INVALID CURL HANDLE\n";
     return false;
   }
+  FILE *outfl = NULL, *infl=NULL;
+
   struct curl_slist *curlHDRS = NULL;
   for( list<string>::iterator hdr = headers.begin(); hdr != headers.end(); hdr++ ) {
     curlHDRS = curl_slist_append( curlHDRS, hdr->c_str() );
   }
+  if ( inFile.compare("") != 0 )
+    curlHDRS = curl_slist_append( curlHDRS, "Transfer-Encoding: chunked");
+
   curl_easy_setopt( curl, CURLOPT_URL, URL.c_str() );
   curl_easy_setopt( curl, CURLOPT_HTTPHEADER, curlHDRS );
 
-  FILE *fl = NULL;
   if ( outFile.compare("") == 0 ) { 
     curl_easy_setopt( curl, CURLOPT_WRITEFUNCTION, responseData );
     curl_easy_setopt( curl, CURLOPT_WRITEDATA, &response );
   } else { 
-    fl = fopen( outFile.c_str(), "w" );
+    outfl = fopen( outFile.c_str(), "w" );
+    if ( outfl == NULL ) { 
+      cerr << "curlRequest::perform(): cannot open file '"<<outFile<<"' for writing.";
+      return false;
+    }
     curl_easy_setopt( curl, CURLOPT_WRITEFUNCTION, NULL );
-    curl_easy_setopt( curl, CURLOPT_WRITEDATA, fl );
+    curl_easy_setopt( curl, CURLOPT_WRITEDATA, outfl );
   }
 
   struct requestData bodyData;
@@ -91,8 +99,21 @@ bool curlRequest::perform() {
 		  break;
 	  case POST:
 		  curl_easy_setopt( curl, CURLOPT_POST, 1 );
-		  curl_easy_setopt( curl, CURLOPT_POSTFIELDSIZE, body.size() );		  
-		  curl_easy_setopt( curl, CURLOPT_POSTFIELDS, body.c_str() );
+		  if ( inFile.compare("") == 0 ) { 
+		    curl_easy_setopt( curl, CURLOPT_POSTFIELDSIZE, body.size() );
+		    curl_easy_setopt( curl, CURLOPT_POSTFIELDS, body.c_str() );
+		  } else {
+		    infl = fopen( inFile.c_str(), "r" );
+		    if ( infl == NULL ) { 
+		      cerr << "curlRequest::perform(): cannot open file '"<<inFile<<"' for reading.";
+		      return false;
+		    }
+		    method = "POST";
+		    curl_easy_setopt( curl, CURLOPT_UPLOAD, 1 );
+		    curl_easy_setopt( curl, CURLOPT_CUSTOMREQUEST, method.c_str() );
+		    curl_easy_setopt( curl, CURLOPT_READFUNCTION, NULL );
+		    curl_easy_setopt( curl, CURLOPT_READDATA, infl );
+		  }
 		  break;
 	  case PUT:
 		  curl_easy_setopt( curl, CURLOPT_READFUNCTION, requestData );
@@ -105,16 +126,22 @@ bool curlRequest::perform() {
 		  break;
 	  case MULTIPART_POST:
 		  cerr << "MULTIPART POST NOT IMPLEMENTED YET";
-		  if ( fl ) fclose( fl );
+		  if ( outfl ) fclose( outfl );
+		  if ( infl ) fclose( infl );
+		  curl_slist_free_all( curlHDRS );
 		  return false;
   }
   if ( curl_easy_perform(curl) ) {
-      if ( fl ) fclose( fl );
+      if ( outfl ) fclose( outfl );
+      if ( infl ) fclose( infl );
+      curl_slist_free_all( curlHDRS );
       cerr << "getFeed() Error: CURL ERROR IN OPERATION\n";
       return false;
   }
   curl_easy_getinfo( curl, CURLINFO_RESPONSE_CODE, &status );
-  if ( fl ) fclose( fl ); 
+  if ( outfl ) fclose( outfl ); 
+  if ( infl ) fclose( infl );
+  curl_slist_free_all( curlHDRS );
 };
 
 
