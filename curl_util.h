@@ -15,12 +15,38 @@
  ***************************************************************/
 
 #include <string>
+#include <list>
 
-enum postType { curlutil_PUT, curlutil_GET, curlutil_POST };
 
-std::string deleteFeed( void *curl, const std::string &feedURL, const std::string authToken = "" );
-std::string getFeed( void *curl, const std::string &feedURL, const std::string authToken = "" );
-std::string postFeed( void *curl, const enum postType type, const std::string &feedURL, const std::string &data, const std::string authToken = "" );
-std::string getAuthToken( void *curl, const std::string &email, const std::string &password, const std::string service = "lh2", const std::string appName = "testCURL" );
+
+
+class curlRequest { 
+	public:
+		enum requestType { GET, POST, PUT, DELETE, MULTIPART_POST };
+
+	private:
+		void *curl;
+		enum requestType request;
+		std::string URL, body, postFields, outFile;
+		std::list< std::string > headers;
+
+		std::string response;
+		int status;
+
+	public:
+		curlRequest(void *curl);
+
+		void addHeader( const std::string &header ){ headers.push_back(header);};
+		void setBody( const std::string &Body, const std::string contentType="application/atom+xml" ) { body=Body; headers.push_back("Content-Type: "+contentType); };
+		void setURL( const std::string &url ) { URL = url; };
+		void setType( const enum requestType reqType ) { request=reqType; };
+		void setOutFile( const std::string &fileName ) { outFile = fileName; };
+
+		bool perform();
+
+		std::string getResponse() { return response; }
+		int getStatus() { return status; };
+};
+
 
 #endif /* _curl_util_H */

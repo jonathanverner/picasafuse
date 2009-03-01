@@ -24,16 +24,32 @@ class picasaAPI {
 		char *curl_error_buf;
 		std::string userName, authToken, appName;
 
+
+	protected:
+
 		bool haveToken();
+		void getAuthToken( const std::string &password );
 
-	public:
 
-		std::string GET( const std::string &feedURL );
+
+		static void dropAuthKey( std::string &URL );
+		static std::string extractAuthKey( std::string &URL );
+		static std::string getAuthKey( const std::string &URL );
+		static bool haveAuthKey( const std::string &URL );
+
+		static int string2int(const std::string &number);
+		static std::string extractVal( const std::string response, const std::string key );
+
+
 		std::string DELETE( const std::string &feedURL );
 		std::string PUT( const std::string &feedURL, const std::string &data );
 		std::string POST( const std::string &feedURL, const std::string &data );
 
-		friend class picasaAlbum;
+
+	public:
+
+		std::string GET( const std::string &feedURL );
+		bool DOWNLOAD( const std::string &URL, const std::string &fileName );
 
 		picasaAPI( const std::string &user = "", const std::string &password = "", const std::string app = "picasaAPI" );
 		~picasaAPI();
@@ -44,7 +60,9 @@ class picasaAPI {
 
 		std::list<std::string> albumList( const std::string &user = "" );
 
-		static int string2int(const std::string &number);
+		friend class picasaAlbum;
+		friend class picasaPhoto;
+
 
 };
 

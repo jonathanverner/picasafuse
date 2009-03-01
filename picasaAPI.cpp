@@ -32,6 +32,35 @@ bool picasaAPI::haveToken() {
   return (authToken.compare("") != 0);
 }
 
+
+void picasaAPI::dropAuthKey( std::string &URL ) { 
+  int authKeyPos = URL.find( "?authkey=" );
+  if ( authKeyPos != string::npos ) URL = URL.substr( 0, authKeyPos );
+}
+
+string picasaAPI::extractAuthKey( std::string &URL ) { 
+  int authKeyPos = URL.find( "?authkey=" );
+  string ret;
+  if ( authKeyPos != string::npos ) {
+    authKeyPos+=9;
+    ret = URL.substr( authKeyPos );
+    URL = URL.substr( 0, authKeyPos-9 );
+    return ret;
+  } else return "";
+}
+
+string picasaAPI::getAuthKey( const std::string &URL ) { 
+  int authKeyPos = URL.find( "?authkey=" );
+  if ( authKeyPos != string::npos )
+    return URL.substr( authKeyPos + 9 );
+  else return "";
+}
+
+bool picasaAPI::haveAuthKey( const std::string &URL ) {
+  return ( URL.find( "?authkey=" ) != string::npos );
+}
+
+
 picasaAPI::picasaAPI( const string &user, const string &password, const string app ) : 
 	userName( user ), appName(app), authToken(""), curl_error_buf(NULL)
 {
@@ -52,7 +81,8 @@ picasaAPI::~picasaAPI() {
 bool picasaAPI::login( const string &password, const string &user ) { 
   if ( password.compare("") == 0 ) return false;
   if ( user.compare("") != 0 ) userName = user;
-  authToken = getAuthToken( curl, userName, password, "lh2", appName );
+  //authToken = getAuthToken( curl, userName, password, "lh2", appName );
+  getAuthToken( password );
   return haveToken();
 }
 
@@ -62,20 +92,92 @@ string picasaAPI::getUser() const {
 }
 
 
+string picasaAPI::extractVal( const string response, const string key ) { 
+  int tokenStart=response.find(key+"=");
+  if ( tokenStart == string::npos ) return "";
+  tokenStart += key.size()+1;
+  int tokenEnd = response.find_first_of( "\n", tokenStart );
+  if ( tokenEnd == string::npos ) return "";
+  return response.substr( tokenStart, tokenEnd-tokenStart );
+}
+
+void picasaAPI::getAuthToken(const string& password) { 
+  curlRequest request( curl );
+  request.setURL( "https://www.google.com/accounts/ClientLogin" );
+  request.setBody("Email="+userName+"&Passwd="+password+"&accountType=GOOGLE&source="+appName+"&service=lh2", "application/x-www-form-urlencoded");
+  request.setType( curlRequest::POST );
+  request.perform();
+  if ( request.getStatus() != 200 ) {
+    cerr << "picasaAPI::getAuthToken: "<< extractVal( request.getResponse(), "Error" ) << " (response status "<<request.getStatus() << ")\n";
+  } else authToken = extractVal( request.getResponse(), "Auth" );
+}
+
+
+bool picasaAPI::DOWNLOAD( const std::string &URL, const std::string &fileName ) { 
+  curlRequest request( curl );
+  if ( haveToken() )  request.addHeader( "Authorization: GoogleLogin auth="+authToken );
+  request.setType( curlRequest::GET );
+  request.setURL( URL );
+  request.setOutFile( fileName );
+  if ( ! request.perform() ) return false;
+  if ( request.getStatus() != 200 ) {
+    cerr << "picasaAPI::DOWNLOAD: "<<request.getResponse() << "(response status "<<request.getStatus() << ")\n";
+    return false;
+  }
+  return true;
+}
+
+
 string picasaAPI::GET( const string &URL ) { 
-  return getFeed( curl, URL, authToken );
+
+  curlRequest request( curl );
+  if ( haveToken() )  request.addHeader( "Authorization: GoogleLogin auth="+authToken );
+  request.setType( curlRequest::GET );
+  request.setURL( URL );
+  request.perform();
+  if ( request.getStatus() != 200 ) {
+    cerr << "picasaAPI::GET: "<<request.getResponse() << "(response status "<<request.getStatus() << ")\n";
+    return "";
+  }
+  return request.getResponse();
 }
 
 string picasaAPI::DELETE( const string &URL ) { 
-  return deleteFeed( curl, URL, authToken );
+  curlRequest request( curl );
+  if ( haveToken() )  request.addHeader( "Authorization: GoogleLogin auth="+authToken );
+  request.setType( curlRequest::DELETE );
+  request.setURL( URL );
+  request.perform();
+  return request.getResponse();
 }
 
 
 string picasaAPI::PUT( const string &URL, const string &data ) { 
-  return postFeed( curl, curlutil_PUT, URL, data, authToken );
+  curlRequest request( curl );
+  if ( haveToken() )  request.addHeader( "Authorization: GoogleLogin auth="+authToken );
+  request.setType( curlRequest::PUT );
+  request.setURL( URL );
+  request.setBody( data, "application/atom+xml" );
+  request.perform();
+  if ( request.getStatus() != 200 && request.getStatus() != 201 ) { 
+    cerr << "picasaAPI::PUT: "<<request.getResponse() << "(response status "<<request.getStatus() << ")\n";
+    return "";
+  }
+  return request.getResponse();
 }
+
 string picasaAPI::POST( const string &URL, const string &data ) { 
-  return postFeed( curl, curlutil_POST, URL, data, authToken );
+  curlRequest request( curl );
+  if ( haveToken() )  request.addHeader( "Authorization: GoogleLogin auth="+authToken );
+  request.setType( curlRequest::POST );
+  request.setURL( URL );
+  request.setBody( data, "application/atom+xml" );
+  request.perform();
+  if ( request.getStatus() != 200 && request.getStatus() != 201 ) { 
+    cerr << "picasaAPI::PUT: "<<request.getResponse() << "(response status "<<request.getStatus() << ")\n";
+    return "";
+  }
+  return request.getResponse();
 }
 
 
