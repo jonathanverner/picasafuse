@@ -48,6 +48,8 @@ class picasaAlbum {
 		void newAlbum( const std::string &albumTitle );
 		void loadFromAtom( const std::string &feedURL );
 		void loadFromXML( const std::string &xml );
+		void loadFromXMLFile( const std::string &xmlFile );
+		void loadFromTicppXML( ticpp::Document *doc );
 
 		std::string htmlFeedURL2AtomFeedURL( const std::string &feedURL );
 		enum feedType guessFeedType( const std::string &feedURL );
@@ -56,14 +58,24 @@ class picasaAlbum {
 		picasaAPI *getAPI() { return api; }
 
 
+		std::string cacheFileName;
+		bool cacheEnabled;
+		void loadFromCache();
+		bool isCached();
 
 	public:
 
+		picasaAlbum( picasaAPI *api, std::string cacheMountPoint, std::string userName, std::string albumName );
 		picasaAlbum( picasaAPI *api, std::string feedURL, enum feedType = AUTO_GUESS, std::string authKey="" );
 		~picasaAlbum();
 	
+
+		void setCachePath( std::string CacheMountPoint );
+		void saveToCache();
+
 		void setUpdatePolicy(const enum updatePolicy policy);
 		bool update();
+		bool reload();
 
 		bool deleteAlbum();
 

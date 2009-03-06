@@ -21,14 +21,61 @@
 
 #include <iostream>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+
 using namespace std;
 
+
+bool picasaAlbum::isCached() { 
+  if ( ! cacheEnabled ) return false;
+
+  struct stat st;
+  int ret = stat( cacheFileName.c_str(), &st );
+  if ( ret == -1 ) return false;
+  else return S_ISREG(st.st_mode);
+}
+
+void picasaAlbum::loadFromCache() { 
+  if ( isCached() )
+    loadFromXMLFile( cacheFileName );
+}
+
+void picasaAlbum::saveToCache() { 
+  if ( !cacheEnabled ) return;
+  xml->SaveFile( cacheFileName );
+}
+  
+
+void picasaAlbum::setCachePath( std::string cacheMountPoint ) { 
+  cacheFileName = cacheMountPoint+"/"+getUser()+"/"+shortTitle+"/.cache";
+  cacheEnabled = true;
+}
+
+
+picasaAlbum::picasaAlbum( picasaAPI *API, string cMPNT, string user, string aName ):
+	api(API), shortTitle( aName )
+{
+  selfURL = "http://picasaweb.google.com/data/entry/api/user/"+user+"/album/"+shortTitle;
+  setCachePath( cMPNT );
+  if ( isCached() ) {
+    loadFromCache();
+  } else { 
+    authKey = extractAuthKey( selfURL );
+    if ( authKey.compare("") == 0 ) access = PUBLIC;
+    else access = UNLISTED;
+    loadFromAtom( selfURL );
+  }
+}; 
 
 void picasaAlbum::loadFromAtom( const std::string &feedURL ) {
   string URL = feedURL;
   if ( access == UNLISTED ) URL+="?authkey="+authKey;
   loadFromXML( api->GET( URL ) );
 }
+
 
 
 std::string picasaAlbum::getUser() const { 
@@ -43,10 +90,9 @@ std::string picasaAlbum::getAlbumId() const {
   return selfURL.substr(idStart,idEnd-idStart);
 }
 
-void picasaAlbum::loadFromXML( const std::string &xmlText ) { 
-  xml = new ticpp::Document();
+void picasaAlbum::loadFromTicppXML( ticpp::Document *doc ) {
+  xml = doc;
   try { 
-    xml->Parse( xmlText );
     ticpp::Element *root = xml->FirstChildElement();
     ticpp::Iterator< ticpp::Element > links("link");
     for( links = links.begin( root ); links != links.end(); links++ ) {
@@ -67,10 +113,33 @@ void picasaAlbum::loadFromXML( const std::string &xmlText ) {
     upToDate = true;
   } catch ( ticpp::Exception &ex ) { 
     syncPol = NO_SYNC;
-    std::cerr << "picasaAlbum::loadFromXML(...): " << ex.what() << "\n";
-    std::cerr << xmlText;
+    std::cerr << "picasaAlbum::loadFromTicppXML(...): " << ex.what() << "\n";
   }
-}
+};
+
+
+void picasaAlbum::loadFromXML( const std::string &xmlText ) { 
+  xml = new ticpp::Document();
+  try { 
+    xml->Parse( xmlText );
+    loadFromTicppXML( xml );
+  } catch ( ticpp::Exception &ex ) { 
+    syncPol = NO_SYNC;
+    std::cerr << "picasaAlbum::loadFromXML(...): " << ex.what() << "\n";
+    std::cerr << xmlText << "\n";
+  }
+};
+
+void picasaAlbum::loadFromXMLFile( const std::string &xmlFile ) { 
+  try { 
+    xml = new ticpp::Document( xmlFile );
+    loadFromTicppXML( xml );
+  } catch ( ticpp::Exception &ex ) { 
+    syncPol = NO_SYNC;
+    std::cerr << "picasaAlbum::loadFromXMLFile("<<xmlFile<<"): " << ex.what() << "\n";
+  }
+};
+
 
 string picasaAlbum::extractAuthKey( std::string &URL ) { 
   int authKeyPos = URL.find( "?authkey=" );
@@ -109,7 +178,8 @@ enum picasaAlbum::feedType picasaAlbum::guessFeedType( const std::string &feedUR
 
 picasaAlbum::picasaAlbum( picasaAPI *API, std::string URL, enum feedType urlType, std::string authKEY ):
 	api(API), selfURL(URL), upToDate( false ), readOnly( true ),
-	syncPol( AUTO_SYNC ), authKey(authKEY)
+	syncPol( AUTO_SYNC ), authKey(authKEY), cacheEnabled( false ),
+	cacheFileName("")
 { 
   authKey = extractAuthKey( selfURL );
   if ( authKey.compare("") == 0 ) access = PUBLIC;
@@ -173,6 +243,10 @@ bool picasaAlbum::update() {
   loadFromXML(api->PUT( editURL, oss.str() ));
   return true;
 }
+
+bool picasaAlbum::reload() { 
+  loadFromAtom( selfURL );
+};
 
 bool picasaAlbum::deleteAlbum() { 
   if ( ! api->loggedIn() ) { 
