@@ -58,6 +58,14 @@ string picasaPhoto::getPhotoID() {
   return xml->FirstChildElement()->FirstChildElement("gphoto:id")->GetText(false);
 }
 
+string picasaPhoto::getAuthKey() { 
+  int authKeyPos = editURL.find( "?authkey=" );
+  if ( authKeyPos != string::npos )
+    return altURL.substr( authKeyPos+9 )
+  else return "";
+}
+
+
 string picasaAlbum::getUser() { 
   int userSPos = selfURL.find("user/")+5;
   int userEPos = selfURL.find_first_of("/", userSPos );
@@ -82,6 +90,24 @@ void picasaPhoto::addComment( string comment ) {
 	      <category scheme=\"http://schemas.google.com/g/2005#kind\"\\
 	          term=\"http://schemas.google.com/photos/2007#comment\"/>\\
                  </entry>";
-  api->POST( picasaService::newCommentURL( getUser(), getAlbumID(), getPhotoID() ), cXML );
+  api->POST( picasaService::newCommentURL( getUser(), getAlbumID(), getPhotoID(), getAuthKey() ), cXML );
 }
+
+list<string> picasaPhoto::getComments() { 
+  atomFeed commentFeed( api );
+  string URL = picasaService::commentFeedURL( getUser(), getAlbumID(), getPhotoID(), getAuthKey() );
+  commentFeed.loadFromURL( URL );
+  list<atomEntry *> comments = commentFeed.getEntries();
+  list<string> ret;
+  try { 
+    for(list<atomEntry *>::iterator it=comments.begin(); it != comments.end(); it++)
+      photos.push_back( (*it)->xml->FirstChildElement()->FirstChildElement("content")->GetText() );
+  } catch ( ticpp::Exception &ex ) { 
+    cerr << " picasaPhoto::getComments(): " << ex.what() << "\n";
+  }
+  for(list<atomEntry *>::iterator it=comments.begin(); it != comments.end(); it++)
+    delete *it;
+  return ret;
+}
+
 

@@ -25,10 +25,16 @@ class picasaService {
 		static std::string newPhotoURL( const std::string &user, const std::string &albumName ) { 
 		  return "http://picasaweb.google.com/data/feed/api/user/"+user"/album/"+albumName;
 		}
-		static std::string newCommentURL( const std::string &user, const std::string &albumID, const std::string &photoID ) {
-		  return "http://picasaweb.google.com/data/feed/api/user/"+user+"/albumid/"+albumID+"/photoid/"+photoID;
+		static std::string newCommentURL( const std::string &user, const std::string &albumID, const std::string &photoID, const std::string &authKey="" ) {
+		  std::string auth = "";
+		  if ( authKey.compare("") != 0 ) auth = "?authkey="+authKey;
+		  return "http://picasaweb.google.com/data/feed/api/user/"+user+"/albumid/"+albumID+"/photoid/"+photoID+auth;
 		}
-
+		static std::string commentFeedURL( const std::string &user, const std::string &albumID, const std::string &photoID, const std::string &authKey="" ) {
+		  std::string auth = "?";
+		  if ( authKey.compare("") != 0 ) auth = "?authkey="+authKey+"&";
+		  return "http://picasaweb.google.com/data/feed/api/user/"+user+"/albumid/"+albumID+"/photoid/"+photoID+auth+"kind=comment";
+		}
 
 
 	public:

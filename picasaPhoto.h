@@ -38,6 +38,7 @@ class picasaPhoto: public atomEntry {
 		std::string getPhotoURL();
 		std::string getAlbumID();
 		std::string getPhotoID();
+		std::string getAuthKey();
 		std::string getUser();
 		void download( const std::string &fileName );
 
@@ -48,7 +49,7 @@ class picasaPhoto: public atomEntry {
 		void UPDATE( const std::string &fileName );
 
 
-		std::list<std::string comments> getComments();
+		std::list<std::string> getComments();
 
 		friend class picasaAlbum;
 

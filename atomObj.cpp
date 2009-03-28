@@ -22,9 +22,13 @@
 
 
 
-atomObj::atomObj( gAPI *API ): api(API), xml(NULL) {};
+atomObj::atomObj( gAPI *API ): api(API), xml(NULL), deleteXmlOnExit(true) {};
 
 bool atomObj::loadFromXML( const std::string & data ) { 
+  if ( xml && deleteXmlOnExit ) {
+    delete xml;
+    xml = NULL;
+  }
   try { 
     xml = new ticpp::Document();
     xml->Parse( data );
@@ -35,6 +39,8 @@ bool atomObj::loadFromXML( const std::string & data ) {
     std::cerr << "------------ BEGIN XML --------------\n";
     std::cerr << data << "\n";
     std::cerr << "------------ END XML --------------\n";
+    delete xml;
+    xml=NULL;
     return false;
   }
 };
@@ -45,6 +51,10 @@ bool atomObj::loadFromURL( const std::string & URL ) {
 };
 
 bool atomObj::loadFromFile( const std::string & fileName )  {
+  if ( xml && deleteXmlOnExit ) {
+    delete xml;
+    xml = NULL;
+  }
   try { 
     xml = new ticpp::Document( fileName );
     extractURLs();
@@ -54,14 +64,26 @@ bool atomObj::loadFromFile( const std::string & fileName )  {
     std::cerr << "------------ BEGIN XML --------------\n";
     std::cerr << data << "\n";
     std::cerr << "------------ END XML --------------\n";
+    delete xml;
+    xml=NULL;
     return false;
   }
 };
 
 bool atomObj::loadFromXML( ticpp::Document *doc ) {
-  xml = doc;
-  extractURLs();
-  return true;
+  if ( xml && deleteXmlOnExit ) {
+    delete xml;
+    xml = NULL;
+  }
+  try { 
+    xml = doc;
+    extractURLs();
+    deleteXmlOnExit=false;
+    return true;
+  } catch ( ticpp::Exception &ex ) { 
+    cerr << " atomObj::loadFromXML( ticpp::Document *doc ): Error while extracting URLs: " << ex.what() << "\n";
+     return false;
+  }
 }
 
 void atomObj::extractURLs() { 
@@ -93,6 +115,7 @@ ticcp::Document *atomObj::getXML() {
 
 
 void atomObj::addOrSet( ticpp::Element *where, const std::string name, const std::string value ) { 
+  try { 
   ticpp::Element *elm = where->FirstChildElement(name);
   if ( ! elm ) { 
     ticpp::Element nelm(name, value);
@@ -100,12 +123,20 @@ void atomObj::addOrSet( ticpp::Element *where, const std::string name, const std
   } else { 
     elm->SetText( value );
   }
+  } catch ( ticpp::Exception &ex ) { 
+    cerr << "atomObj::addOrSet( ...,"<<name<<", "<<value<<" ): "<<ex.what();
+  }
 }
 
 
 std::string atomObj::getVersion() const { 
-  ticpp::Element *root = xml->FirstChildElement();
-  return root->GetAttribute( "gd:etag" );
+  try { 
+    ticpp::Element *root = xml->FirstChildElement();
+    if ( root->HasAttribute("gd:etag") ) return root->GetAttribute( "gd:etag" );
+    return root->FirstChildElement("gphoto:version")->GetText();
+  } catch ( ticpp::Exception &ex ) { 
+    return "";
+  }
 }
 
 std::string atomObj::getAuthor() const { 
@@ -117,7 +148,7 @@ std::string atomObj::getTitle() const {
 
 
 void atomObj::setAuthor(std::string Author) { 
-  ticpp::Element *auth = xml->FirstChildElement()->FirstChildElement("author");
+  ticpp::Element *auth = xml->FirstChildElement()->FirstChildElement("author",false);
 
   if ( ! auth ) {
     ticpp::Element nm("name",Author), na("author");
@@ -138,5 +169,5 @@ void atomObj::setTitle(std::string Title) {
 }
 
 ~atomObj::atomObj() { 
-  if ( xml ) delete xml;
+  if ( xml && deleteXmlOnExit ) delete xml;
 };

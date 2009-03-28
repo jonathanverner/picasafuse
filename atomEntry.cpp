@@ -24,10 +24,10 @@
 
 using namespace std;
 
-atomEntry::atomEntry( gAPI *API ): api(API), xml(NULL) {};
+atomEntry::atomEntry( gAPI *API ): atomObj( API ) {};
 
 
-atomEntry::atomEntry( gAPI *API, const ticpp::Element &entry ): api(API), xml(NULL) { 
+atomEntry::atomEntry( gAPI *API, const ticpp::Element &entry ): atomObj( API ) { 
     ticpp::Iterator< ticpp::Element > links("link");
     for( links = links.begin( &entry ); links != links.end(); links++ ) {
       if ( links->GetAttribute( "rel" ).compare("edit") == 0 )

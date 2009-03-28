@@ -28,11 +28,14 @@ bool atomFeed::addNewEntry( atomEntry *entry ) {
   return entry->loadFromXML( api->POST( selfURL, entry->getStringXML() ) );
 };
 
-std::list<atomEntry *> atomFeed::getEntries() { 
+std::list<atomEntry *> atomFeed::getEntries() {
+  atomEntry *ent;
   ticpp::Iterator< ticpp::Element > entry("entry");
   list<string> ret;
-  for( entry = entry.begin( xml->FirstChildElement() ); entry != entry.end(); entry++ ) { 
-   ret.push_back( new atomEntry( api, *entry ) );
+  for( entry = entry.begin( xml->FirstChildElement() ); entry != entry.end(); entry++ ) {
+    ent = new atomEntry( api, *entry );
+    ent.deleteXmlOnExit=false;
+    ret.push_back( new atomEntry( api, *entry ) );
   }
   return ret;
 }

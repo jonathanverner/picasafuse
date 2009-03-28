@@ -130,8 +130,10 @@ list<picasaPhoto *> picasaAlbum::getPhotos() {
   photoFeed.loadFromURL(URL);
   list<atomEntry *> entries = photoFeed.getEntries();
   list<picasaPhoto *> photos;
-  for( list<atomEntry *>::iterator:it=entries.begin();it !=entries.end();it++)
+  for( list<atomEntry *>::iterator:it=entries.begin();it !=entries.end();it++) {
     photos.push_back(new picasaPhoto( *it ) );
+    delete *it;
+  }
   return photos;
 }
 

@@ -28,6 +28,7 @@ class atomObj {
 		ticpp::Document *xml;
 		std::string selfURL, editURL, altURL;
 		void extractURLs();
+		bool deleteXmlOnExit;
 
 
 	protected:
@@ -38,7 +39,7 @@ class atomObj {
 		bool loadFromURL( const std::string & URL );
 		bool loadFromFile( const std::string & fileName );
 		bool loadFromXML( const std::string & xml );
-		bool loadFromXML( ticpp::Document *doc );
+		bool loadFromXML( ticpp::Document *doc ); // By default will not be deleted by the destructor of atomObj
 
 		void writeToFile( const std::string & fileName );
 		std::string getStringXML();
