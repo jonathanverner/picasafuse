@@ -14,69 +14,47 @@
  *CHANGES:
  ***************************************************************/
 
+#include "atomEntry.h"
+
 #include <string>
 #include <list>
 
-#include "picasaAlbum.h"
-
-namespace ticpp { 
-  class Document;
-  class Element;
-}
+class gAPI;
 
 
-class picasaPhoto { 
+class picasaPhoto: public atomEntry { 
 	private:
-		std::string caption, fileName, checkSum, selfURL, editURL, altURL, photoURL;
-		std::list< std::string > comments;
-		ticpp::Document *xml;
-		size_t size;
+		std::string mediaEditURL;
 
-		picasaAlbum *album;
+		void extractMediaEditURL();
 
-		enum picasaAlbum::updatePolicy syncPol;
-		bool upToDate;
-		bool modified();
-
-
-		picasaPhoto( picasaAlbum *album, ticpp::Element *xmlEntry );
-
-		bool isURL( const std::string &fileName );
-		void loadFromXML( const std::string &xmlText );
-		void loadFromXML( const ticpp::Document *xmlDoc );
+	protected:
+		picasaPhoto( atomEntry &entry );
+		picasaPhoto( gAPI *api, const std::string &fileName, const std::string &albumName, const std::string &Title="", const std::string &Summary="" );
 
 	public:
 
-		picasaPhoto( picasaAlbum *album, const std::string &fileNameOrURL );
+		std::string getSummary();
+		std::string getPhotoURL();
+		std::string getAlbumID();
+		std::string getPhotoID();
+		std::string getUser();
+		void download( const std::string &fileName );
 
-		bool setCaption( const std::string &caption );
-		bool setFileName( const std::string &fileName );
-		bool setCheckSum( const std::string &checkSum );
+		void setSummary( std::string summary );
+		void addComment( std::string comment );
+	
 
-		bool uploadPhoto( const std::string &fileName );
-		bool downloadPhoto( const std::string &fileName );
-
-		bool deletePhoto();
-
-		void setUpdatePolicy(const enum picasaAlbum::updatePolicy policy);
-		bool update();
+		void UPDATE( const std::string &fileName );
 
 
-		std::string getCaption();
-		std::string getFileName();
-		std::string getCheckSum();
-
-		size_t getSize() { return size; }
-		std::string URL() { return photoURL; }
-
-		int numOfComments() { return comments.size(); };
-		bool addComment( const std::string &comment );
-		std::list< std::string > allComments() { return comments; }
+		std::list<std::string comments> getComments();
 
 		friend class picasaAlbum;
+
 };
 
-	
+
 
 
 #endif /* _picasaPhoto_H */

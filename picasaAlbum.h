@@ -15,88 +15,48 @@
  ***************************************************************/
 
 #include <string>
+#include <list>
 
-class picasaAPI;
+#include "picasaObj.h"
 
-namespace ticpp { 
-  class Document;
-}
+class picasaPhoto;
 
-class picasaAlbum { 
+
+
+#include "atomEntry.h"
+
+class picasaAlbum : public atomEntry {
 	public:
-		
-		// AUTO_SYNC: synchronize upon every set operation
-		// SEMI_AUTO_SYNC: synchronize upon delete
-		// MANUAL_SYNC: synchronize only when calling the update method explicitly
-		// NO_SYNC: never synchronize, not even when calling the update method
-		//          (NO_SYNC causes all modifications to be lost upon delete)
-		enum updatePolicy { AUTO_SYNC, SEMI_AUTO_SYNC, MANUAL_SYNC, NO_SYNC };
-		enum feedType { ATOM_FEED, HTML_FEED, NEW_ALBUM_TITLE, AUTO_GUESS };
 		enum accessType { PUBLIC, UNLISTED, ACL };
 
-	private:
-		std::string title, shortTitle, pubDate, modDate, description, selfURL, editURL,altURL, authKey;
-		enum accessType access;
 
-		ticpp::Document *xml;
-		picasaAPI *api;
-		bool upToDate, readOnly;
-		enum updatePolicy syncPol;
-
-		bool modified();
-
-		void newAlbum( const std::string &albumTitle );
-		void loadFromAtom( const std::string &feedURL );
-		void loadFromXML( const std::string &xml );
-		void loadFromXMLFile( const std::string &xmlFile );
-		void loadFromTicppXML( ticpp::Document *doc );
-
-		std::string htmlFeedURL2AtomFeedURL( const std::string &feedURL );
-		enum feedType guessFeedType( const std::string &feedURL );
-
-		std::string extractAuthKey( std::string &URL );
-		picasaAPI *getAPI() { return api; }
-
-
-		std::string cacheFileName;
-		bool cacheEnabled;
-		void loadFromCache();
-		bool isCached();
-
+	protected:
+		picasaAlbum( atomEntry &entry );
+		picasaAlbum( gAPI *api, const std::string &Title, const std::string &Description="", const std::string &Location="", enum accessType access = PUBLIC, bool comments, const std::string &keywords );
 	public:
 
-		picasaAlbum( picasaAPI *api, std::string cacheMountPoint, std::string userName, std::string albumName );
-		picasaAlbum( picasaAPI *api, std::string feedURL, enum feedType = AUTO_GUESS, std::string authKey="" );
-		~picasaAlbum();
-	
+		std::string getSummary();
+		std::string getLocation();
+		std::string getShortTitle();
+		std::string getAuthKey();
+		std::string getUser();
+		enum accessType getAccessType();
+		
 
-		void setCachePath( std::string CacheMountPoint );
-		void saveToCache();
+		void setSummary( std::string summary );
+		void setLocation( std::string location );
+		void setAccessType( enum accessType access );
 
-		void setUpdatePolicy(const enum updatePolicy policy);
-		bool update();
-		bool reload();
 
-		bool deleteAlbum();
+		picasaPhoto *addPhoto( const std::string &fileName, const std::string &Title="", const std::string &Summary = ""   );
 
-		std::string getShortTitle() const { return shortTitle; };
-		std::string getTitle() const { return title; };
-		std::string getPubDate() const { return pubDate; };
-		std::string getModDate() const { return modDate; };
-		std::string getDescription() const { return description; };
-		std::string getAuthKey() const { return authKey; };
-		std::string getUser() const;
-		std::string getAlbumId() const;
+		std::list<picasaPhoto *> getPhotos();
 
-		enum accessType getAccessType() const { return access; };
+		friend picasaService;
 
-		bool setTitle( std::string title );
-		bool setPubDate( std::string pubDate );
-		bool setDescription( std::string description );
-
-		friend std::ostream & operator <<( std::ostream &out, picasaAlbum album );
-		friend class picasaPhoto;
 };
+
+
 
 
 

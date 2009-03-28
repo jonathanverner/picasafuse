@@ -21,6 +21,7 @@ SET(PICASA_SRC
 	picasaAPI.cpp
 	picasaPhoto.cpp
 	curlRequest.cpp
+	picasaObj.cpp
 )
 
 ADD_EXECUTABLE(testAPI

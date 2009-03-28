@@ -1,8 +1,8 @@
-#ifndef _picasaAPI_H
-#define _picasaAPI_H
+#ifndef _gAPI_H
+#define _gAPI_H
 
 /***************************************************************
- * picasaAPI.h
+ * gAPI.h
  * @Author:      Jonathan Verner (jonathan.verner@matfyz.cz)
  * @License:     GPL v2.0 or later
  * @Created:     2009-02-26.
@@ -18,7 +18,7 @@
 #include <list>
 
 
-class picasaAPI { 	
+class gAPI { 	
 	private:
 		void *curl;
 		char *curl_error_buf;
@@ -52,8 +52,8 @@ class picasaAPI {
 		std::string GET( const std::string &feedURL );
 		bool DOWNLOAD( const std::string &URL, const std::string &fileName );
 
-		picasaAPI( const std::string &user = "", const std::string &password = "", const std::string app = "picasaAPI" );
-		~picasaAPI();
+		gAPI( const std::string &user = "", const std::string &password = "", const std::string app = "gAPI" );
+		~gAPI();
 
 		bool login( const std::string &password, const std::string &user = "");
 		bool loggedIn() { return haveToken(); };
@@ -63,6 +63,9 @@ class picasaAPI {
 
 		friend class picasaAlbum;
 		friend class picasaPhoto;
+		friend class atomObj;
+		friend class atomEntry;
+		friend class atomFeed;
 
 
 };
@@ -70,4 +73,4 @@ class picasaAPI {
 
 
 
-#endif /* _picasaAPI_H */
+#endif /* _gAPI_H */

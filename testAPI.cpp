@@ -56,7 +56,7 @@ int main( int argc, char **argv ) {
 //  cout<<"Enter your password:";
 //  cin>>password;
   picasaAPI api( user, password );
-  picasaAlbum *album=NULL;
+  varPicasaAlbum *album=NULL;
   if ( command.compare("list") == 0 ) { 
     cout<<"Album list:\n-------------------------\n";
     list<string> albums = api.albumList();
@@ -66,14 +66,14 @@ int main( int argc, char **argv ) {
   } else {
     string URL(argv[3]);
     if ( command.compare("album") == 0 ) { 
-      album = new picasaAlbum( &api, URL );
+      album = new varPicasaAlbum( &api, URL );
       cout << *album;
       delete album;
     } else if ( command.compare("get") == 0 ) { 
       cout << api.GET( URL );
     } else if ( command.compare("albumEdit") == 0 ) { 
-      album = new picasaAlbum( &api, URL );
-      album->setUpdatePolicy( picasaAlbum::MANUAL_SYNC );
+      album = new varPicasaAlbum( &api, URL );
+      album->setUpdatePolicy( varPicasaAlbum::MANUAL_SYNC );
       cout << *album;
       album->setTitle( newTitle );
       album->setDescription( description );
@@ -81,11 +81,11 @@ int main( int argc, char **argv ) {
       cout << *album;
       delete album;
     } else if ( command.compare("delete") == 0 ) { 
-      album = new picasaAlbum( &api, URL );
+      album = new varPicasaAlbum( &api, URL );
       album->deleteAlbum();
       delete album;
     } else if ( command.compare("upload") == 0 ) { 
-      album = new picasaAlbum( &api, URL );
+      album = new varPicasaAlbum( &api, URL );
       picasaPhoto *photo = new picasaPhoto( album, fileName );
     } else { 
       cerr << " usage: " << argv[0] << " e-mail {list|album|get} [URL]\n";

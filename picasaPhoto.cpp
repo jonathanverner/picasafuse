@@ -13,6 +13,8 @@
 
 
 #include "picasaPhoto.h"
+#include "gAPI.h"
+#include "picasaService.h"
 
 #ifndef TIXML_USE_TICPP
 #define TIXML_USE_TICPP
@@ -20,159 +22,66 @@
 #include "ticpp/ticpp.h"
 
 
-#include "picasaAlbum.h"
-#include "picasaAPI.h"
 
 using namespace std;
 
-bool picasaPhoto::isURL( const std::string &fileName ) { 
-  if ( fileName.find( "http://" ) == 0 || fileName.find( "https://" ) == 0 ) return true;
-  return false;
+
+
+picasaPhoto::picasaPhoto( atomEntry &entry ): atomEntry( entry ) { 
+  extractMediaEditURL();
 }
 
-
-void picasaPhoto::loadFromXML( const ticpp::Document *xmlDoc ) { 
-  ticpp::Element *root = xmlDoc->FirstChild("entry")->ToElement();
-  ticpp::Iterator< ticpp::Element > links("link");
-  for( links = links.begin( root ); links != links.end(); links++ ) {
-    if ( links->GetAttribute( "rel" ).compare( "edit-media" ) == 0 )
-      editURL = links->GetAttribute( "href" );  
-    if ( links->GetAttribute( "rel" ).compare( "alternate" ) == 0 )
-      altURL = links->GetAttribute( "href" );
-    if ( links->GetAttribute( "rel" ).compare( "self" ) == 0 )
-      selfURL = links->GetAttribute( "href" );
-  }
-  
-  picasaAPI::dropAuthKey( editURL );
-  picasaAPI::dropAuthKey( altURL );
-  picasaAPI::dropAuthKey( selfURL );
-
-  photoURL = root->FirstChildElement( "content" )->GetAttribute( "src" );
-  fileName = root->FirstChildElement( "title" )->GetText(false);
-  caption = root->FirstChildElement( "summary" )->GetText(false);
-  checkSum = root->FirstChildElement( "gphoto:checksum" )->GetText(false);
-  size = picasaAPI::string2int( root->FirstChildElement("gphoto:size")->GetText(false) );
-}
-
-void picasaPhoto::loadFromXML( const std::string &xmlText ) { 
-  xml = new ticpp::Document();
-  try { 
-    xml->Parse( xmlText );
-    loadFromXML( xml );
-  } catch ( ticpp::Exception &ex ) { 
-    std::cerr << "picasaPhoto::loadFromXML( xmlText ): " << ex.what() << "\n";
-    std::cerr << xmlText;
-  }
-}
-
-
-picasaPhoto::picasaPhoto( picasaAlbum *Album, ticpp::Element *xmlEntry ):
-	album(Album) 
+picasaPhoto::picasaPhoto( gAPI *API, const string &fileName, const string &albumName, const string &Title, const string &Summary ): 
+	atomEntry( API )
 {
-  syncPol = album->syncPol;
-  try { 
-    xml = new ticpp::Document();
-    xml->InsertEndChild( *xmlEntry );
-    loadFromXML( xml );
-  } catch ( ticpp::Exception &ex ) { 
-    std::cerr << "picasaPhoto::picasaPhoto( ..., xmlEntry ): " << ex.what() << "\n";
-  }
-}
-
-picasaPhoto::picasaPhoto( picasaAlbum *Album, const std::string &fileNameOrURL ):
-	album(Album)
-{
-  syncPol = album->syncPol;
-  if ( isURL( fileNameOrURL ) ) { 
-    string URL = fileNameOrURL;
-    if ( album->getAccessType() == picasaAlbum::UNLISTED )
-      URL+="?authkey="+album->getAuthKey();
-    string xmlText = album->getAPI()->GET( URL );
-    loadFromXML( xmlText );
-  } else {
-    if ( fileNameOrURL.find(".jpg") == string::npos ) { 
+  string url = picasaService::newPhotoURL( api->getUser(), albumName );
+  if ( fileName.find(".jpg") == string::npos ) { 
       cerr << "picasaPhoto::picasaPhoto(...,"<<fileNameOrURL<<"): Only jpeg's allowed at the moment.\n";
-    }
-    list<string> hdrs;
-    hdrs.push_back("Slug: "+fileNameOrURL );
-    loadFromXML(album->getAPI()->POST_FILE( "http://picasaweb.google.com/data/feed/api/user/"+album->getUser()+"/albumid/"+album->getAlbumId(), fileNameOrURL, "image/jpeg", hdrs ));
   }
+  list<string> hdrs;
+  hdrs.push_back("Slug: "+Title );
+  loadFromXML(api->POST_FILE( url, fileName, "image/jpeg", hdrs ) );
+  addOrSet( xml->FirstChildElement(), "summary", Summary );
+  UPDATE();
 }
 
-void picasaPhoto::setUpdatePolicy( const enum picasaAlbum::updatePolicy policy ) { 
-  syncPol = policy;
+
+string picasaPhoto::getSummary() { 
+  return xml->FirstChildElement()->FirstChildElement("summary")->GetText(false);
 }
 
-bool picasaPhoto::modified() { 
-  upToDate = false;
-  if ( syncPol == picasaAlbum::AUTO_SYNC ) return update();
-  return true;
+string picasaPhoto::getAlbumID() { 
+  return xml->FirstChildElement()->FirstChildElement("gphoto:albumid")->GetText(false);
 }
 
-bool picasaPhoto::update() { 
-  if ( syncPol == picasaAlbum::NO_SYNC ) return false;
-  if ( upToDate ) return true;
-  if ( ! album->getAPI()->loggedIn() ) { 
-    cerr<<"picasaAlbum::update: Not logged in!\n";
-    return false;
-  }
-  cerr << "picasaPhoto::update(): Updating not implemented yet; \n";
-  return false;
-  /*
-  ostringstream oss( ostringstream::out );
-  oss << *xml;
-  loadFromXML(api->PUT( editURL, oss.str() ));
-  return true;*/
-}
-bool picasaPhoto::setCaption( const std::string &c ) { 
-  caption = c;
-  xml->FirstChildElement()->FirstChildElement( "summary" )->SetText( caption );
-  return modified();
-};
-
-bool picasaPhoto::setFileName( const std::string &f ) {
-  fileName = f;
-  xml->FirstChildElement()->FirstChildElement( "title" )->SetText( fileName );
-  return modified();
-};
-
-bool picasaPhoto::setCheckSum( const std::string &c ) { 
-  checkSum = c;
-  xml->FirstChildElement()->FirstChildElement( "gphoto:checksum" )->SetText( checkSum );
-  return modified();
-};
-
-bool picasaPhoto::addComment( const std::string &comment ) {
-  if ( ! album->getAPI()->loggedIn() ) { 
-    cerr<<"picasaPhoto::addComment: Not logged in!\n";
-    return false;
-  }
-  cerr<<"picasaPhoto::addComment(): Adding comments not implemented yet;\n";
-  return false;
+string picasaPhoto::getPhotoID() { 
+  return xml->FirstChildElement()->FirstChildElement("gphoto:id")->GetText(false);
 }
 
-bool picasaPhoto::deletePhoto() {
-  if ( ! album->getAPI()->loggedIn() ) { 
-    cerr<<"picasaPhoto::deletePhoto: Not logged in!\n";
-    return false;
-  }
-  string resp = album->getAPI()->DELETE( editURL );
-  if ( resp.size() > 0 ) {
-    cerr << resp;
-    return false;
-  } else return true;
+string picasaAlbum::getUser() { 
+  int userSPos = selfURL.find("user/")+5;
+  int userEPos = selfURL.find_first_of("/", userSPos );
+  return selfURL.substr(userSPos, userEPos-userSPos );
 }
 
-bool picasaPhoto::uploadPhoto( const std::string &fileName ) { 
-  if ( ! album->getAPI()->loggedIn() ) { 
-    cerr<<"picasaPhoto::deletePhoto: Not logged in!\n";
-    return false;
-  }
-  cerr<<"picasaPhoto::uploadPhoto(): Uploading photos not implemented yet;\n";
-  return false;
+string picasaPhoto::getPhotoURL() { 
+  return xml->FirstChildElement()->FirstChildElement("content")->GetAttribute("src");
 }
 
-bool picasaPhoto::downloadPhoto( const std::string &fileName ) { 
-  return album->getAPI()->DOWNLOAD( photoURL, fileName );
+void picasaPhoto::download( const string fileName ) { 
+ api->DOWNLOAD( getPhotoURL, fileName );
+}
+
+void picasaPhoto::setSummary( string summary ) { 
+  addOrSet( xml->FirstChildElement(), "summary", summary );
+}
+
+void picasaPhoto::addComment( string comment ) { 
+  string cXML = "<entry xmlns='http://www.w3.org/2005/Atom'>\\
+              <content>"+comment+"</content>\\
+	      <category scheme=\"http://schemas.google.com/g/2005#kind\"\\
+	          term=\"http://schemas.google.com/photos/2007#comment\"/>\\
+                 </entry>";
+  api->POST( picasaService::newCommentURL( getUser(), getAlbumID(), getPhotoID() ), cXML );
 }
 
