@@ -20,6 +20,7 @@ class gAPI;
 
 namespace ticpp { 
   class Document;
+  class Element;
 }
 
 class atomObj { 
@@ -56,6 +57,11 @@ class atomObj {
 		std::string getTitle() const;
 		std::string getSelfURL() const;
 		std::string getVersion() const;
+
+		void setAuthor( const std::string &Author);
+		void setTitle( const std::string &Author);
+
+		friend class picasaPhoto;
 };
 
 

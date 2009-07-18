@@ -15,15 +15,18 @@
  ***************************************************************/
 
 #include <string>
+#include <list>
 
 class picasaAlbum;
 class picasaPhoto;
+class gAPI;
 
 class picasaService { 
 	private:
+	  gAPI *api;
 
 		static std::string newPhotoURL( const std::string &user, const std::string &albumName ) { 
-		  return "http://picasaweb.google.com/data/feed/api/user/"+user"/album/"+albumName;
+		  return "http://picasaweb.google.com/data/feed/api/user/"+user+"/album/"+albumName;
 		}
 		static std::string newCommentURL( const std::string &user, const std::string &albumID, const std::string &photoID, const std::string &authKey="" ) {
 		  std::string auth = "";
@@ -43,7 +46,9 @@ class picasaService {
 		picasaAlbum *createAlbum( const std::string Title );
 		picasaAlbum *getAlbum( const std::string &user, const std::string &albumName, const std::string authKey = "" );
 		std::list<picasaAlbum *> getAlbums( const std::string &user = "");
-		std::list<picasaPhoto *> getPhotos( const std::string &user = "");
+//		std::list<picasaPhoto *> getPhotos( const std::string &user = "");
+
+		friend class picasaPhoto;
 };
 
 
@@ -52,4 +57,4 @@ class picasaService {
 
 
 
-endif /* _picasaService_H */
+#endif /* _picasaService_H */

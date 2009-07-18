@@ -5,7 +5,7 @@
  * picasaAlbum.h
  * @Author:      Jonathan Verner (jonathan.verner@matfyz.cz)
  * @License:     GPL v2.0 or later
- * @Created:     2009-02-27.
+ * @Created:     2009-02-27
  * @Last Change: 2009-02-27.
  * @Revision:    0.0
  * Description:
@@ -16,6 +16,7 @@
 
 #include <string>
 #include <list>
+#include <iosfwd>
 
 #include "picasaObj.h"
 
@@ -32,15 +33,15 @@ class picasaAlbum : public atomEntry {
 
 	protected:
 		picasaAlbum( atomEntry &entry );
-		picasaAlbum( gAPI *api, const std::string &Title, const std::string &Description="", const std::string &Location="", enum accessType access = PUBLIC, bool comments, const std::string &keywords );
+		picasaAlbum( gAPI *api, const std::string &Title, const std::string &Description="", const std::string &Location="", enum accessType access = PUBLIC, bool comments = false, const std::string &keywords = "");
 	public:
 
-		std::string getSummary();
-		std::string getLocation();
-		std::string getShortTitle();
-		std::string getAuthKey();
-		std::string getUser();
-		enum accessType getAccessType();
+		std::string getSummary() const;
+		std::string getLocation() const;
+		std::string getShortTitle() const;
+		std::string getAuthKey() const;
+		std::string getUser() const;
+		enum accessType getAccessType() const;
 		
 
 		void setSummary( std::string summary );
@@ -52,7 +53,8 @@ class picasaAlbum : public atomEntry {
 
 		std::list<picasaPhoto *> getPhotos();
 
-		friend picasaService;
+		friend class picasaService;
+		friend std::ostream &operator<<(std::ostream &out, const picasaAlbum &album);
 
 };
 

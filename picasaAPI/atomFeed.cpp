@@ -13,6 +13,7 @@
  
 #include "atomFeed.h"
 #include "atomEntry.h"
+#include "gAPI.h"
 
 #ifndef TIXML_USE_TICPP
 #define TIXML_USE_TICPP
@@ -22,7 +23,7 @@
 
 using namespace std;
 
-atomFeed::atomFeed( gAPI *API ): api(API), xml(NULL) {}
+atomFeed::atomFeed( gAPI *API ): atomObj(API) {}
 
 bool atomFeed::addNewEntry( atomEntry *entry ) { 
   return entry->loadFromXML( api->POST( selfURL, entry->getStringXML() ) );
@@ -31,11 +32,11 @@ bool atomFeed::addNewEntry( atomEntry *entry ) {
 std::list<atomEntry *> atomFeed::getEntries() {
   atomEntry *ent;
   ticpp::Iterator< ticpp::Element > entry("entry");
-  list<string> ret;
+  list<atomEntry *> ret;
   for( entry = entry.begin( xml->FirstChildElement() ); entry != entry.end(); entry++ ) {
     ent = new atomEntry( api, *entry );
-    ent.deleteXmlOnExit=false;
-    ret.push_back( new atomEntry( api, *entry ) );
+    ent->deleteXmlOnExit=false;
+    ret.push_back( ent );
   }
   return ret;
 }

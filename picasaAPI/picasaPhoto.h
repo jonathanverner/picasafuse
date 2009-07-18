@@ -52,6 +52,7 @@ class picasaPhoto: public atomEntry {
 		std::list<std::string> getComments();
 
 		friend class picasaAlbum;
+		friend class picasaService;
 
 };
 

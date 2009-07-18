@@ -30,6 +30,9 @@ class atomFeed : public atomObj {
 		atomFeed( gAPI *api );		
 		bool addNewEntry( atomEntry *entry );
 		std::list<atomEntry *> getEntries();
+
+		friend class picasaAlbum;
+		friend class picasaPhoto;
 };
 
 

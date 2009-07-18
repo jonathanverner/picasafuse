@@ -15,6 +15,7 @@
 #include "picasaPhoto.h"
 #include "gAPI.h"
 #include "picasaService.h"
+#include "atomFeed.h"
 
 #ifndef TIXML_USE_TICPP
 #define TIXML_USE_TICPP
@@ -26,6 +27,9 @@
 using namespace std;
 
 
+void picasaPhoto::extractMediaEditURL() {// FIXME: Needs real implementation
+  mediaEditURL = "";
+}
 
 picasaPhoto::picasaPhoto( atomEntry &entry ): atomEntry( entry ) { 
   extractMediaEditURL();
@@ -36,13 +40,13 @@ picasaPhoto::picasaPhoto( gAPI *API, const string &fileName, const string &album
 {
   string url = picasaService::newPhotoURL( api->getUser(), albumName );
   if ( fileName.find(".jpg") == string::npos ) { 
-      cerr << "picasaPhoto::picasaPhoto(...,"<<fileNameOrURL<<"): Only jpeg's allowed at the moment.\n";
+      cerr << "picasaPhoto::picasaPhoto(...,"<<fileName<<"): Only jpeg's allowed at the moment.\n";
   }
   list<string> hdrs;
   hdrs.push_back("Slug: "+Title );
   loadFromXML(api->POST_FILE( url, fileName, "image/jpeg", hdrs ) );
   addOrSet( xml->FirstChildElement(), "summary", Summary );
-  UPDATE();
+  atomEntry::UPDATE();
 }
 
 
@@ -61,12 +65,12 @@ string picasaPhoto::getPhotoID() {
 string picasaPhoto::getAuthKey() { 
   int authKeyPos = editURL.find( "?authkey=" );
   if ( authKeyPos != string::npos )
-    return altURL.substr( authKeyPos+9 )
+    return altURL.substr( authKeyPos+9 );
   else return "";
 }
 
 
-string picasaAlbum::getUser() { 
+string picasaPhoto::getUser() { 
   int userSPos = selfURL.find("user/")+5;
   int userEPos = selfURL.find_first_of("/", userSPos );
   return selfURL.substr(userSPos, userEPos-userSPos );
@@ -76,8 +80,8 @@ string picasaPhoto::getPhotoURL() {
   return xml->FirstChildElement()->FirstChildElement("content")->GetAttribute("src");
 }
 
-void picasaPhoto::download( const string fileName ) { 
- api->DOWNLOAD( getPhotoURL, fileName );
+void picasaPhoto::download( const string &fileName ) { 
+ api->DOWNLOAD( getPhotoURL(), fileName );
 }
 
 void picasaPhoto::setSummary( string summary ) { 
@@ -85,10 +89,10 @@ void picasaPhoto::setSummary( string summary ) {
 }
 
 void picasaPhoto::addComment( string comment ) { 
-  string cXML = "<entry xmlns='http://www.w3.org/2005/Atom'>\\
-              <content>"+comment+"</content>\\
-	      <category scheme=\"http://schemas.google.com/g/2005#kind\"\\
-	          term=\"http://schemas.google.com/photos/2007#comment\"/>\\
+  string cXML = "<entry xmlns='http://www.w3.org/2005/Atom'>\
+                 <content>"+comment+"</content>\
+                 <category scheme=\"http://schemas.google.com/g/2005#kind\"\
+                 term=\"http://schemas.google.com/photos/2007#comment\"/>\
                  </entry>";
   api->POST( picasaService::newCommentURL( getUser(), getAlbumID(), getPhotoID(), getAuthKey() ), cXML );
 }
@@ -101,7 +105,7 @@ list<string> picasaPhoto::getComments() {
   list<string> ret;
   try { 
     for(list<atomEntry *>::iterator it=comments.begin(); it != comments.end(); it++)
-      photos.push_back( (*it)->xml->FirstChildElement()->FirstChildElement("content")->GetText() );
+      ret.push_back( (*it)->xml->FirstChildElement()->FirstChildElement("content")->GetText() );
   } catch ( ticpp::Exception &ex ) { 
     cerr << " picasaPhoto::getComments(): " << ex.what() << "\n";
   }

@@ -45,14 +45,14 @@ void atomEntry::setAuthor(std::string Author) {
   ticpp::Element *auth = xml->FirstChildElement()->FirstChildElement("author");
   if ( ! auth ) {
     ticpp::Element nm("name",Author), na("author");
-    na.insertEndChild( nm );
-    xml->FirstChildElement()->insertEndChild( na );
+    na.InsertEndChild( nm );
+    xml->FirstChildElement()->InsertEndChild( na );
   } else {
     ticpp::Element *name = auth->FirstChildElement("name");
     if ( name ) name->SetText( Author );
     else { 
       ticpp::Element nm("name",Author);
-      name->insertEndChild( nm );
+      name->InsertEndChild( nm );
     }
   }
 }
@@ -61,9 +61,9 @@ void atomEntry::setTitle(std::string Title) {
   ticpp::Element *auth = xml->FirstChildElement()->FirstChildElement("title");
   if ( ! auth ) {
     ticpp::Element nA("title",Title);
-    xml->FirstChildElement()->insertEndChild( nA );
+    xml->FirstChildElement()->InsertEndChild( nA );
   } else {
-    auth->SetText( Author );
+    auth->SetText( Title );
   }
 }
 
@@ -72,10 +72,11 @@ bool atomEntry::UPDATE() {
 }
 
 bool atomEntry::DELETE() { 
-  return api->DELETE( editURL );
+  api->DELETE( editURL );
   delete xml;
+  return true; // FIXME: Find out status from api->DELETE
 }
 
-~atomEntry::atomEntry() { 
+atomEntry::~atomEntry() { 
   if ( xml ) delete xml;
 };

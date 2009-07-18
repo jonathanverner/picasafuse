@@ -28,7 +28,7 @@ class atomEntry : public atomObj {
 	protected:
 	
 		atomEntry( gAPI *api );
-		atomEntry( const ticpp::Element &entry );
+		atomEntry( gAPI *api, const ticpp::Element &entry );
 
 	public:
 

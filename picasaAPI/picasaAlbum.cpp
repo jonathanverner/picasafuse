@@ -36,7 +36,7 @@ picasaAlbum::picasaAlbum( atomEntry &entry ) : atomEntry( entry ) {
 }
 
 
-picasaAlbum::picasaAlbum( gAPI *API, const string &Title, const string &Description="", const string &Location="", enum accessType access = PUBLIC, bool comments = true, const string &keywords ) :
+picasaAlbum::picasaAlbum( gAPI *API, const string &Title, const string &Description, const string &Location, enum accessType access, bool comments, const string &keywords ) :
 	atomEntry( API )
 { 
   string acSTR, cm;
@@ -51,7 +51,7 @@ picasaAlbum::picasaAlbum( gAPI *API, const string &Title, const string &Descript
 		  acSTR="private"; /*FIXME*/
 		  break;
   }
-  if ( comments ) cm = "true" else cm = "false;
+  if ( comments ) cm = "true"; else cm = "false";
   string xml = "<?xml version='1.0' encoding='utf-8'?> \
 	          <entry xmlns='http://www.w3.org/2005/Atom'  \
 		  xmlns:media='http://search.yahoo.com/mrss/' \
@@ -70,15 +70,15 @@ picasaAlbum::picasaAlbum( gAPI *API, const string &Title, const string &Descript
 }
 
 
-string picasaAlbum::getSummary() { 
+string picasaAlbum::getSummary() const { 
   return xml->FirstChildElement()->FirstChildElement("summary")->GetText(false);
 }
 
-string picasaAlbum::getLocation() { 
+string picasaAlbum::getLocation() const { 
   return xml->FirstChildElement()->FirstChildElement("location")->GetText(false);
 }
 
-string picasaAlbum::getShortTitle() { 
+string picasaAlbum::getShortTitle() const { 
   int slashPos = altURL.find_last_of("/");
   int queryPos = altURL.find_first_of("?", slashPos);
   if ( queryPos == string::npos ) { 
@@ -88,20 +88,20 @@ string picasaAlbum::getShortTitle() {
   }
 }
 
-string picasaAlbum::getAuthKey() { 
+string picasaAlbum::getAuthKey() const { 
   int authKeyPos = altURL.find( "?authkey=" );
   if ( authKeyPos != string::npos )
-    return altURL.substr( authKeyPos+9 )
+    return altURL.substr( authKeyPos+9 );
   else return "";
 }
 
-string picasaAlbum::getUser() { 
+string picasaAlbum::getUser() const { 
   int userSPos = selfURL.find("user/")+5;
   int userEPos = selfURL.find_first_of("/", userSPos );
   return selfURL.substr(userSPos, userEPos-userSPos );
 }
   
-enum picasaAlbum::accessType picasaAlbum::getAccessType() { 
+enum picasaAlbum::accessType picasaAlbum::getAccessType() const { 
   string acSTR=xml->FirstChildElement()->FirstChildElement("gphoto:access")->GetText(false);
   if ( acSTR.compare("private") != 0 ) return UNLISTED;
   else return PUBLIC; /*FIXME*/
@@ -115,9 +115,9 @@ void picasaAlbum::setLocation( string location ) {
    addOrSet( xml->FirstChildElement(), "gphoto:location", location );
 }
  
-
-void picasaAlbum::addPhoto( picasaPhoto *photo ) { 
+picasaPhoto *addPhoto( const std::string &fileName, const std::string &Title, const std::string &Summary) {
 }
+
 
 list<picasaPhoto *> picasaAlbum::getPhotos() { 
   atomFeed photoFeed( api );
@@ -130,18 +130,25 @@ list<picasaPhoto *> picasaAlbum::getPhotos() {
   photoFeed.loadFromURL(URL);
   list<atomEntry *> entries = photoFeed.getEntries();
   list<picasaPhoto *> photos;
-  for( list<atomEntry *>::iterator:it=entries.begin();it !=entries.end();it++) {
-    photos.push_back(new picasaPhoto( *it ) );
+  for( list<atomEntry *>::iterator it=entries.begin();it !=entries.end();it++) {
+    photos.push_back(new picasaPhoto( **it ) );
     delete *it;
   }
   return photos;
 }
 
 picasaPhoto *picasaAlbum::addPhoto( const std::string &fileName, const std::string &Title, const std::string &Summary ) { 
-  return *ret = new picasaPhoto( api, fileName, getShortTitle(), Title, Summary );
+  return new picasaPhoto( api, fileName, getShortTitle(), Title, Summary );
 }
 
 
 
 
+std::ostream &operator<<(std::ostream &out, const picasaAlbum &album) { 
+  out << "Title: " << album.getShortTitle() << "\n";
+  out << "Summary: " << album.getSummary() << "\n";
+  out << "Location: " << album.getLocation() << "\n";
+  out << "User: " << album.getUser() << "\n";
+  out << "AuthKey: " << album.getAuthKey() << "\n";
+}
 
