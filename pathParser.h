@@ -1,0 +1,47 @@
+#ifndef _pathParser_H
+#define _pathParser_H
+
+/***************************************************************
+ * pathParser.h
+ * @Author:      Jonathan Verner (jonathan.verner@matfyz.cz)
+ * @License:     GPL v2.0 or later
+ * @Created:     2009-07-18.
+ * @Last Change: 2009-07-18.
+ * @Revision:    0.0
+ * Description:
+ * Usage:
+ * TODO:
+ *CHANGES:
+ ***************************************************************/
+
+#include <string>
+
+class pathParser { 
+	private:
+		std::string userName, albumName, image;
+		bool valid;
+		bool hUser, hAlbum, hImage;
+
+	public:
+		pathParser( const std::string &path );
+		pathParser( const char *path );
+		pathParser();
+
+		void parse( const std::string &path );
+
+
+		bool isValid() const { return valid; }
+
+		bool haveImage() const { return hImage; }
+		bool haveAlbum() const { return hAlbum; }
+		bool haveUser() const { return hUser; }
+
+		std::string getUser() const { return userName; }
+		std::string getAlbum() const { return albumName; }
+		std::string getImage() const { return image; }
+
+		std::string getHash() const;
+};
+
+
+#endif /* _pathParser_H */

@@ -15,6 +15,7 @@
  ***************************************************************/
 
 #include <string>
+#include <set>
 #include <list>
 
 
@@ -23,7 +24,6 @@ class gAPI {
 		void *curl;
 		char *curl_error_buf;
 		std::string userName, authToken, appName;
-
 
 	protected:
 
@@ -59,13 +59,14 @@ class gAPI {
 		bool loggedIn() { return haveToken(); };
 		std::string getUser() const;
 
-		std::list<std::string> albumList( const std::string &user = "" );
+		std::set<std::string> albumList( const std::string &user = "" );
 
 		friend class picasaAlbum;
 		friend class picasaPhoto;
 		friend class atomObj;
 		friend class atomEntry;
 		friend class atomFeed;
+		friend class picasaObj;
 
 
 };

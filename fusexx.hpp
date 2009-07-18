@@ -90,7 +90,7 @@ namespace fusexx {
 		    static int chown (const char *, uid_t, gid_t) { return 0; }
 		    static int truncate (const char *, off_t) { return 0; }
 		    static int utime (const char *, struct utimbuf *) { return 0; }
-		    static int open (const char *, struct fuse_file_info *) { return 0; }
+		    static int fuse_open (const char *, struct fuse_file_info *) { return 0; }
 		    static int read (const char *, char *, size_t, off_t, struct fuse_file_info *) { return 0; }
 		    static int write (const char *, const char *, size_t, off_t,struct fuse_file_info *) { return 0; }
 		    static int statfs (const char *, struct statvfs *) { return 0; }
@@ -127,7 +127,7 @@ namespace fusexx {
 			    operations.chown = T::chown;
 			    operations.truncate = T::truncate;
 			    operations.utime = T::utime;
-			    operations.open = T::open;
+			    operations.open = T::fuse_open;
 			    operations.read = T::read;
 			    operations.write = T::write;
 			    operations.statfs = T::statfs;
