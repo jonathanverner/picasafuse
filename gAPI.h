@@ -44,6 +44,9 @@ class gAPI {
 		std::string POST( const std::string &feedURL, const std::string &data );
 		std::string POST_FILE( const std::string &feedURL, const std::string &fileName, const std::string &contentType, std::list< std::string > &headers );
 
+	public:
+		enum exceptionType { GENERAL_ERROR };
+
 
 	public:
 
@@ -57,7 +60,7 @@ class gAPI {
 		bool loggedIn() { return haveToken(); };
 		std::string getUser() const;
 
-		std::set<std::string> albumList( const std::string &user = "" );
+		std::set<std::string> albumList( const std::string &user = "" ) throw ( enum exceptionType );
 
 		friend class picasaAlbum;
 		friend class picasaPhoto;

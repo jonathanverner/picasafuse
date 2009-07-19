@@ -185,7 +185,7 @@ string gAPI::POST_FILE( const string &URL, const string &file, const string &con
 
 
 
-set<string> gAPI::albumList( const string &user ) {
+set<string> gAPI::albumList( const string &user ) throw (enum gAPI::exceptionType ) {
   string URL = "http://picasaweb.google.com/data/feed/api/user/"+user;
   set<string> ret;
   if (user.compare("") == 0) URL+=userName;
@@ -198,8 +198,7 @@ set<string> gAPI::albumList( const string &user ) {
       ret.insert( albumItem->FirstChildElement( "title" )->GetText() );
     }
   } catch ( ticpp::Exception &ex ) { 
-    ret.insert( "gAPI_ticpp_exception" );
-    std::cerr << "gAPI::albumList (TinyXML++): " << ex.what();
+    throw GENERAL_ERROR;
   }
   return ret;
 }
