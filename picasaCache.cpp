@@ -246,6 +246,44 @@ void picasaCache::clearCache() {
   cache.clear();
 }
 
+list<pathParser> picasaCache::getChildrenInCache( const pathParser &p ) {
+  list<pathParser> ret;
+  struct cacheElement c = cache[ p.getHash() ];
+  pathParser child;
+  ret.push_back( p );
+  if ( c.type == cacheElement::DIRECTORY ) {
+    for( set<string>::iterator ch = c.contents.begin(); ch != c.contents.end(); ++ch ) {
+      child = p;
+      child.append( *ch );
+      ret.push_back( child );
+    }
+  }
+  return ret;
+}
+  
+void picasaCache::removeFromCache( const pathParser &p ) { 
+  if ( p.isRoot() ) return;
+  boost::mutex::scoped_lock cl(cache_mutex);
+  boost::mutex::scoped_lock ql(update_queue_mutex);
+  list<pathParser> children = getChildrenInCache( p );
+  for( list<pathParser>::iterator child = children.begin(); child != children.end(); ++child ) { 
+    update_queue.remove( *child );
+    cache.erase( child->getHash() );
+  }
+  ql.unlock();
+  pathParser parent = p;
+  parent.toParent();
+  string me = p.getLastComponent();
+  struct cacheElement c = cache[parent.getHash()];
+  c.contents.erase(me);
+  cache[parent.getHash()] = c;
+  cl.unlock();
+  log( "rm -rf " + cacheDir + "/" + p.getFullName() + "\n" );
+  boost::filesystem::remove_all( cacheDir + "/" + p.getFullName() );
+}
+  
+
+
 bool picasaCache::getFromCache( const string &key, struct cacheElement &e ) {
   boost::mutex::scoped_lock l(cache_mutex);
   if ( cache.find( key ) == cache.end() ) return false;
@@ -253,7 +291,7 @@ bool picasaCache::getFromCache( const string &key, struct cacheElement &e ) {
   return true;
 }
 
-void picasaCache::putIntoCache( const std::string &key, const struct cacheElement &e ) { 
+void picasaCache::putIntoCache( const std::string &key, const struct cacheElement &e ) {
   boost::mutex::scoped_lock l(cache_mutex);
   cache[key] = e;
 }
@@ -317,12 +355,7 @@ void picasaCache::rmdir( const pathParser &p ) throw ( enum picasaCache::excepti
     if ( p.getUser() == "logs" ) throw ACCESS_DENIED;
     removeFromCache( p );
     return;
-size_t picasaCache::getSize( const pathParser &p ) {
-  struct cacheElement e;
-  if ( ! exists(p) ) return -1;
-  if ( isDir( p ) ) return sizeof(char)*1024;
-  if ( getFromCache( p, e ) ) return e.size;
-  return 0;
+  } else throw UNIMPLEMENTED;
 }
 
 set<string> picasaCache::ls( const pathParser &path ) throw ( enum picasaCache::exceptionType) {

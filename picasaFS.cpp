@@ -80,3 +80,21 @@ int PicasaFS::read(const char *path, char *buf, size_t size, off_t offset,
 	return self->cache->read( p, buf, size, offset, fi );
 }
 
+int PicasaFS::rmdir( const char *path ) { 
+  pathParser p(path);
+  try { 
+    self->cache->rmdir( p );
+  } catch ( enum picasaCache::exceptionType ex ) { 
+    switch ( ex ) { 
+	    case picasaCache::ACCESS_DENIED:
+		    return -EACCES;
+	    case picasaCache::UNIMPLEMENTED:
+		    return -EPERM;
+	    default:
+		    return -ENOENT;
+    }
+  }
+  return 0;
+}
+
+

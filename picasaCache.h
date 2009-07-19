@@ -97,10 +97,12 @@ class picasaCache {
 
 		void needPath( const pathParser &p );
 
-		size_t getSize( const pathParser &p );
 		std::set<std::string> ls( const pathParser &p ) throw (enum exceptionType);
                 int read( const pathParser &p, char *buf, size_t size, off_t offset, struct fuse_file_info *fi );
 		int getAttr( const pathParser &p, struct stat *stBuf );
+
+		void rmdir( const pathParser &p ) throw (enum exceptionType);
+
 
 	private:
 		boost::shared_ptr<boost::thread> update_thread;
@@ -116,6 +118,10 @@ class picasaCache {
 		void pleaseUpdate( const pathParser p );
 
 
+		// Warning: NOT THREAD SAFE. Need to acquire a lock on cache_mutex
+		// before calling this function.
+		std::list<pathParser> getChildrenInCache( const pathParser &p );
+
 		bool isCached( const std::string &key );
 		bool isCached( const pathParser &p );
 		void clearCache();
@@ -123,6 +129,7 @@ class picasaCache {
 		bool getFromCache( const std::string &key, struct cacheElement &e );
 		void putIntoCache( const pathParser &p, const struct cacheElement &e );
 		void putIntoCache( const std::string &key, const struct cacheElement &e );
+		void removeFromCache( const pathParser &p );
 
 		boost::mutex cache_mutex;
 		std::map< std::string, struct cacheElement > cache;
