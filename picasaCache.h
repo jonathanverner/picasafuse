@@ -25,9 +25,9 @@
 #include <boost/thread/thread.hpp>
 #include <boost/shared_ptr.hpp>
 
-
 class gAPI;
 struct fuse_file_info;
+struct stat;
 class pathParser;
 
 
@@ -82,6 +82,10 @@ struct cacheElement {
 
 
 class picasaCache { 
+	public:
+		enum exceptionType { OBJECT_DOES_NOT_EXIST, UNIMPLEMENTED, ACCESS_DENIED };
+
+
 
 	public:
 		picasaCache( const std::string &user = "", const std::string &password = "", const std::string &cache = "~/.picasaFUSE" );
@@ -93,9 +97,10 @@ class picasaCache {
 
 		void needPath( const pathParser &p );
 
-		std::set<std::string> ls( const pathParser &p );
 		size_t getSize( const pathParser &p );
+		std::set<std::string> ls( const pathParser &p ) throw (enum exceptionType);
                 int read( const pathParser &p, char *buf, size_t size, off_t offset, struct fuse_file_info *fi );
+		int getAttr( const pathParser &p, struct stat *stBuf );
 
 	private:
 		boost::shared_ptr<boost::thread> update_thread;
@@ -104,9 +109,9 @@ class picasaCache {
 		volatile bool work_to_do;
 		volatile bool kill_thread;
 		void update_worker();
-		void doUpdate( const pathParser p );
+		void doUpdate( const pathParser p ) throw ( enum picasaCache::exceptionType );
 
-		void updateUser( const std::string userName );
+		void updateUser( const std::string userName ) throw ( enum picasaCache::exceptionType );
 
 		void pleaseUpdate( const pathParser p );
 

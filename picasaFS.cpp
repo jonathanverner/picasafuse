@@ -30,33 +30,23 @@ int PicasaFS::getattr (const char *path, struct stat *stbuf) {
   // Zero out the file stat buffer
   memset (stbuf, 0, sizeof (struct stat));
 
-  if ( ! self->cache->exists( p ) ) return -ENOENT;
-  if ( self->cache->isDir( p ) ) { 
-    stbuf->st_mode = S_IFDIR | 0755;
-    stbuf->st_nlink = 2;
-    return 0;
-  }
-   
-  // Compare the private variable of the PicasaFS object to the
-  // passed-in path parameter from fuse
-  if ( self->cache->isFile( p ) ) { 
-    stbuf->st_mode = S_IFREG | 0444; // read-only
-    stbuf->st_nlink = 1;
-    stbuf->st_size = self->cache->getSize( p );
-    return 0;
-  }
-  return -ENOENT;
+  return self->cache->getAttr( p, stbuf );
 }
 
 int PicasaFS::readdir(const char *path, void *buf, fuse_fill_dir_t filler,
                 off_t offset, struct fuse_file_info *fi) {
-//        (void) offset;
-//        (void) fi;
 
 	pathParser p(path);
 
-	if ( ! self->cache->isDir( p ) || ! self->cache->exists( p ) ) return -ENOENT;
-	set<string> dirList = self->cache->ls( p );
+	if ( ! self->cache->isDir( p ) ) return -ENOENT;
+
+	set<string> dirList;
+
+	try { 
+	  dirList = self->cache->ls( p );
+	} catch ( picasaCache::exceptionType ex ) { 
+	  return -ENOENT;
+	}
 
 	filler( buf, ".", NULL, 0 );
         filler( buf, "..", NULL, 0);

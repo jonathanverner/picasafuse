@@ -139,37 +139,54 @@ void picasaCache::pleaseUpdate( const pathParser p ) {
 }
 
 
-void picasaCache::updateUser( const string userName ) { 
-  pathParser p( "/" );
-  struct cacheElement c,d;
+void picasaCache::updateUser( const string userName ) throw ( enum picasaCache::exceptionType ) { 
+  set<string> albums;
+
   log( "picasaCache::updateUser("+userName+")\n" );
+
+  try { 
+    albums = api->albumList( userName );
+  } catch ( enum gAPI::exceptionType ex ) { 
+    log( "picasaCache::updateUser("+userName+"): Error: User not found.\n" );
+    throw OBJECT_DOES_NOT_EXIST;
+  }
+
+  struct cacheElement c;
+  pathParser p;
+  
+  // Add user to root directory
+  p.parse( "/" );
   getFromCache( p, c );
   c.contents.insert( userName );
   putIntoCache( p, c );
-  p.parse("/"+userName);
-  set<string> albums = api->albumList( userName );
 
+  c.writeable = ( userName == api->getUser() );
+  c.type = cacheElement::DIRECTORY;
+
+  // Add user directory to cache
+  p.parse("/"+userName);
   getFromCache( p, c );
+  c.world_readable = true;
   c.contents.clear();
-  c.contents = api->albumList( userName );
+  c.contents = albums;
   c.last_updated = time( NULL );
   putIntoCache( p, c );
-  d.type = cacheElement::DIRECTORY;
-  d.contents.clear();
-  d.world_readable = true; //FIXME
-  d.writeable = ( userName == api->getUser() );
-  d.last_updated = 0;
-  for( set<string>::iterator dir = c.contents.begin(); dir != c.contents.end(); ++dir ) { 
-    d.name = *dir;
-    d.authKey = "";
+
+  // Add user albums to cache
+  c.contents.clear();
+  c.world_readable = true; //FIXME
+  c.last_updated = 0;
+  for( set<string>::iterator dir = albums.begin(); dir != albums.end(); ++dir ) { 
+    c.name = *dir;
+    c.authKey = "";
     p.parse( "/"+userName+"/"+*dir );
-    putIntoCache( p, d );
+    putIntoCache( p, c );
   }
 }
 
 
 
-void picasaCache::doUpdate( const pathParser p ) {
+void picasaCache::doUpdate( const pathParser p ) throw ( enum picasaCache::exceptionType ) {
   struct cacheElement c;
   pathParser np;
   time_t now = time( NULL );
@@ -186,7 +203,7 @@ void picasaCache::doUpdate( const pathParser p ) {
 	log(estream.str());
       }
     } else {
-      updateUser( p.getUser() );
+	updateUser( p.getUser() );
     }
   }
 }
@@ -202,7 +219,9 @@ void picasaCache::update_worker() {
       update_queue.pop_front();
       if ( update_queue.size() == 0 ) work_to_do = false;
       l.unlock();
-      doUpdate( p );
+      try { 
+	doUpdate( p );
+      } catch (enum picasaCache::exceptionType ex ) { }
     }
   }
 }
@@ -265,10 +284,38 @@ bool picasaCache::exists( const pathParser &path ) {
   return false;
 }
 
+int picasaCache::getAttr( const pathParser &path, struct stat *stBuf ) { 
+  struct cacheElement e;
+  if ( ! getFromCache( path, e ) ) {
+    try {
+      doUpdate( path );
+    } catch ( enum exceptionType ex ) { 
+      return -ENOENT;
+    }
+    if ( ! getFromCache( path, e ) ) return -ENOENT;
+  }
+  stBuf->st_size = e.size;
+  switch ( e.type ) { 
+	  case cacheElement::DIRECTORY:
+		  stBuf->st_mode = S_IFDIR | 0755;
+		  stBuf->st_nlink = 2;
+		  return 0;
+	  case cacheElement::FILE:
+		  stBuf->st_mode = S_IFREG;
+		  stBuf->st_nlink = 1;
+		  return 0;
+  }
+}
+
 void picasaCache::needPath( const pathParser &path ) {
   pleaseUpdate( path );
 }
 
+void picasaCache::rmdir( const pathParser &p ) throw ( enum picasaCache::exceptionType ) {
+  if ( p.isUser() ) { 
+    if ( p.getUser() == "logs" ) throw ACCESS_DENIED;
+    removeFromCache( p );
+    return;
 size_t picasaCache::getSize( const pathParser &p ) {
   struct cacheElement e;
   if ( ! exists(p) ) return -1;
@@ -277,13 +324,22 @@ size_t picasaCache::getSize( const pathParser &p ) {
   return 0;
 }
 
-set<string> picasaCache::ls( const pathParser &path ) {
+set<string> picasaCache::ls( const pathParser &path ) throw ( enum picasaCache::exceptionType) {
   set<string> ret;
   if ( ! isDir(path) ) return ret;
   struct cacheElement e;
-  if ( getFromCache( path , e ) ) ret = e.contents;
-  pleaseUpdate( path );
-  return ret;
+  if ( getFromCache( path , e ) ) {
+    pleaseUpdate( path );
+    return e.contents;
+  } else { 
+    doUpdate( path );
+    if ( getFromCache( path, e ) ) { 
+      return e.contents;
+    } else {
+      log ( "picasaCache::ls("+path.getHash()+"): exception." );
+      throw OBJECT_DOES_NOT_EXIST;
+    }
+  }
 }
 
 int fillBufFromString( string data, char *buf, size_t size, off_t offset ) { 
