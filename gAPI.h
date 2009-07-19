@@ -19,10 +19,8 @@
 #include <list>
 
 
-class gAPI { 	
+class gAPI { 
 	private:
-		void *curl;
-		char *curl_error_buf;
 		std::string userName, authToken, appName;
 
 	protected:

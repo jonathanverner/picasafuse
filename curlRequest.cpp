@@ -21,6 +21,9 @@
 
 using namespace std;
 
+map<boost::thread::id, void*> curlRequest::curl_handles;
+
+
 static size_t responseData(void *ptr, size_t size, size_t nmemb, void *data ) { 
   string *responseBuf = static_cast<string *>(data);
   responseBuf->append( (char *) ptr, size*nmemb );
@@ -50,15 +53,28 @@ static size_t requestData(void *ptr, size_t size, size_t nmemb, void *Data ) {
 
 
 
-curlRequest::curlRequest( void *c ): 
-	curl(c), request( GET ), body(""), URL(""), status(-1),
+curlRequest::curlRequest(): 
+	request( GET ), body(""), URL(""), status(-1),
 	response(""), outFile("")
 {
 }
 
+void *curlRequest::getThreadCurlHandle() { 
+  void *ret;
+  boost::thread::id tID = boost::this_thread::get_id();
+  if ( curl_handles.find( tID ) == curl_handles.end() ) { 
+    ret = curl_easy_init();
+    if ( ret )
+      curl_handles[tID] = ret;
+    return ret;
+  } else {
+    return curl_handles[tID];
+  }
+}
 
-bool curlRequest::perform() { 
-  if ( ! curl ) { 
+bool curlRequest::perform() {
+  void *curl = getThreadCurlHandle();
+  if ( ! getThreadCurlHandle() ) { 
     cerr << "getFeed() Error: INVALID CURL HANDLE\n";
     return false;
   }

@@ -21,8 +21,6 @@
 #endif
 #include "ticpp/ticpp.h"
 
-#include <curl/curl.h>
-
 #include <string>
 
 using namespace std;
@@ -62,26 +60,14 @@ bool gAPI::haveAuthKey( const std::string &URL ) {
 
 
 gAPI::gAPI( const string &user, const string &password, const string app ) : 
-	userName( user ), appName(app), authToken(""), curl_error_buf(NULL)
+	userName( user ), appName(app), authToken("")
 {
-  curl = curl_easy_init();
-  if ( curl ) { 
-    curl_error_buf = new char[ CURL_ERROR_SIZE ];
-    curl_easy_setopt( curl, CURLOPT_ERRORBUFFER, curl_error_buf );
-  }
-  
   login( password );
-}
-
-gAPI::~gAPI() { 
-  curl_easy_cleanup(curl);
-  delete curl_error_buf;
 }
 
 bool gAPI::login( const string &password, const string &user ) { 
   if ( password.compare("") == 0 ) return false;
   if ( user.compare("") != 0 ) userName = user;
-  //authToken = getAuthToken( curl, userName, password, "lh2", appName );
   getAuthToken( password );
   return haveToken();
 }
@@ -102,7 +88,7 @@ string gAPI::extractVal( const string response, const string key ) {
 }
 
 void gAPI::getAuthToken(const string& password) { 
-  curlRequest request( curl );
+  curlRequest request;
   request.setURL( "https://www.google.com/accounts/ClientLogin" );
   request.setBody("Email="+userName+"&Passwd="+password+"&accountType=GOOGLE&source="+appName+"&service=lh2", "application/x-www-form-urlencoded");
   request.setType( curlRequest::POST );
@@ -114,7 +100,7 @@ void gAPI::getAuthToken(const string& password) {
 
 
 bool gAPI::DOWNLOAD( const std::string &URL, const std::string &fileName ) { 
-  curlRequest request( curl );
+  curlRequest request;
   if ( haveToken() )  request.addHeader( "Authorization: GoogleLogin auth="+authToken );
   request.setType( curlRequest::GET );
   request.setURL( URL );
@@ -130,7 +116,7 @@ bool gAPI::DOWNLOAD( const std::string &URL, const std::string &fileName ) {
 
 string gAPI::GET( const string &URL ) { 
 
-  curlRequest request( curl );
+  curlRequest request;
   if ( haveToken() )  request.addHeader( "Authorization: GoogleLogin auth="+authToken );
   request.setType( curlRequest::GET );
   request.setURL( URL );
@@ -143,7 +129,7 @@ string gAPI::GET( const string &URL ) {
 }
 
 string gAPI::DELETE( const string &URL ) { 
-  curlRequest request( curl );
+  curlRequest request;
   if ( haveToken() )  request.addHeader( "Authorization: GoogleLogin auth="+authToken );
   request.setType( curlRequest::DELETE );
   request.setURL( URL );
@@ -153,7 +139,7 @@ string gAPI::DELETE( const string &URL ) {
 
 
 string gAPI::PUT( const string &URL, const string &data ) { 
-  curlRequest request( curl );
+  curlRequest request;
   if ( haveToken() )  request.addHeader( "Authorization: GoogleLogin auth="+authToken );
   request.setType( curlRequest::PUT );
   request.setURL( URL );
@@ -167,7 +153,7 @@ string gAPI::PUT( const string &URL, const string &data ) {
 }
 
 string gAPI::POST( const string &URL, const string &data ) { 
-  curlRequest request( curl );
+  curlRequest request;
   if ( haveToken() )  request.addHeader( "Authorization: GoogleLogin auth="+authToken );
   request.setType( curlRequest::POST );
   request.setURL( URL );
@@ -181,7 +167,7 @@ string gAPI::POST( const string &URL, const string &data ) {
 }
 
 string gAPI::POST_FILE( const string &URL, const string &file, const string &contentType, list<string> &headers ) { 
- curlRequest request( curl );
+ curlRequest request;
   if ( haveToken() )  request.addHeader( "Authorization: GoogleLogin auth="+authToken );
   request.setType( curlRequest::POST );
   request.setURL( URL );

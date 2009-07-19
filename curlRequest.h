@@ -16,6 +16,9 @@
 
 #include <string>
 #include <list>
+#include <map>
+#include <boost/thread/thread.hpp>
+
 
 
 
@@ -25,7 +28,7 @@ class curlRequest {
 		enum requestType { GET, POST, PUT, DELETE, MULTIPART_POST };
 
 	private:
-		void *curl;
+		static std::map<boost::thread::id,void*> curl_handles;
 		enum requestType request;
 		std::string URL, body, postFields, outFile, inFile;
 		std::list< std::string > headers;
@@ -33,8 +36,10 @@ class curlRequest {
 		std::string response;
 		int status;
 
+		static void *getThreadCurlHandle();
+
 	public:
-		curlRequest(void *curl);
+		curlRequest();
 
 		void addHeader( const std::string &header ){ headers.push_back(header);};
 		void setBody( const std::string &Body, const std::string contentType="application/atom+xml" ) { body=Body; headers.push_back("Content-Type: "+contentType); };
