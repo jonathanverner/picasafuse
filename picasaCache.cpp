@@ -233,6 +233,7 @@ bool picasaCache::getFromCache( const pathParser &p, struct cacheElement &e ) {
 }
 
 void picasaCache::putIntoCache( const pathParser &p, const struct cacheElement &e ) {
+  if ( isDir( p ) ) cacheMkdir( cacheDir, p );
   putIntoCache( p.getHash(), e );
 }
 

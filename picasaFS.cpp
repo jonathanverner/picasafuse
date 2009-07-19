@@ -21,6 +21,10 @@ PicasaFS::PicasaFS ( const string &user, const string &pass, const string &cache
         // all we're doing is initialize the member variables
 }
 
+void PicasaFS::destroy( void * ) { 
+  delete self->cache;
+}
+
 
 
 
