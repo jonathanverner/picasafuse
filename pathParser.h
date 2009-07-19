@@ -28,6 +28,8 @@ class pathParser {
 		pathParser();
 
 		void parse( const std::string &path );
+		void append( const std::string &path );
+		void toParent();
 
 
 		bool isValid() const { return valid; }
@@ -36,11 +38,21 @@ class pathParser {
 		bool haveAlbum() const { return hAlbum; }
 		bool haveUser() const { return hUser; }
 
+		bool isImage() const { return hImage; }
+		bool isAlbum() const { return hAlbum && ! hImage; }
+		bool isUser() const { return hUser && ! hAlbum; }
+		bool isRoot() const { return ! hUser; }
+
 		std::string getUser() const { return userName; }
 		std::string getAlbum() const { return albumName; }
 		std::string getImage() const { return image; }
+		std::string getLastComponent() const;
+		std::string getFullName() const;
+
 
 		std::string getHash() const;
+
+		bool operator ==(const pathParser &p) const;
 };
 
 

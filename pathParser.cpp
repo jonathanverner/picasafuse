@@ -89,5 +89,60 @@ void pathParser::parse( const string &path ) {
   }
 }
 
+void pathParser::append( const std::string &path ) { 
+  if ( ! hUser ) { 
+    hUser = true;
+    userName = path;
+    return;
+  }
+  if ( ! hAlbum ) { 
+    hAlbum = true;
+    albumName = path;
+    return;
+  }
+  if ( ! hImage ) { 
+    hImage = true;
+    image = path;
+    return;
+  }
+}
+
+void pathParser::toParent() { 
+  if ( hImage ) { 
+    hImage = false;
+    image = "";
+    return;
+  }
+  if ( hAlbum ) { 
+    hAlbum = false;
+    albumName = "";
+    return;
+  }
+  if ( hUser ) { 
+    hUser == false;
+    userName = "";
+    return;
+  }
+}
+
+std::string pathParser::getLastComponent() const { 
+  if ( hImage ) return image;
+  if ( hAlbum ) return albumName;
+  if ( hUser ) return userName;
+  return "";
+}
+
+std::string pathParser::getFullName() const {
+  if ( hImage ) return userName + "/" + albumName + "/" + image;
+  if ( hAlbum ) return userName + "/" + albumName;
+  if ( hUser ) return userName;
+  return "";
+}
+
+
+bool pathParser::operator==( const pathParser &p ) const { 
+  if ( p.hUser != hUser || p.hAlbum != hAlbum || p.hImage != hImage || p.valid != valid ) return false;
+  return ( p.userName == userName && p.albumName == albumName && p.image == image );
+}
 
 
