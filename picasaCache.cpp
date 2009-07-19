@@ -20,7 +20,21 @@
 
 
 #include <boost/bind.hpp>
+#include <boost/filesystem/operations.hpp>
+
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/archive/text_iarchive.hpp>
+#include <boost/serialization/string.hpp>
+#include <boost/serialization/map.hpp>
+#include <boost/serialization/set.hpp>
+
+
 #include <sstream>
+#include <fstream>
+
+#include <sys/stat.h>
+#include <sys/types.h>
+
 
 using namespace std;
 
@@ -45,61 +59,65 @@ const struct cacheElement &cacheElement::operator=( const struct cacheElement &e
     return e;
 }
 
-
-picasaCache::picasaCache( const string &user, const string &pass, const string &cache):
+void cacheMkdir( string cacheDir, const pathParser &p ) { 
+  string path = cacheDir+"/";
+  if ( p.haveUser() ) { 
+    path+=p.getUser();
+    mkdir( path.c_str(), 0755 );
+    path+="/";
+  }
+  if ( p.haveAlbum() ) { 
+    path+=p.getAlbum();
+    mkdir( path.c_str(), 0755 );
+  }
+}
+    
+picasaCache::picasaCache( const string &user, const string &pass, const string &ch):
 	api( new gAPI( user, pass, "picasaFUSE" ) ),
-	work_to_do(false)
+	work_to_do(false), kill_thread(false), cacheDir( ch )
 {
-  pathParser JV("/jonathan.verner"), JV_Album1("/jonathan.verner/album1"), JV_Album2("/jonathan.verner/album2"), root("");
-  set<string> JV_list, JV_Album1_list, JV_Album2_list, root_list;
-  JV_list.insert("album1");
-  JV_list.insert("album2");
-  JV_Album1_list.insert("photo1.jpg");
-  JV_Album1_list.insert("photo2.jpg");
-  JV_Album2_list.insert("photo3.jpg");
-  JV_Album2_list.insert("photo4.jpg");
-  root_list.insert("jonathan.verner");
-  root_list.insert("logs");
-  struct cacheElement d;
-  d.last_updated = time( NULL );
-  d.type = cacheElement::DIRECTORY;
-  d.name="jonathan.verner";
-  d.contents = JV_list;
-  d.size=sizeof(char)*1024;
-  d.world_readable=true;
-  d.writeable = false;
-  d.authKey = "";
-  putIntoCache( JV, d );
-  d.name="album1";
-  d.contents = JV_Album1_list;
-  putIntoCache( JV_Album1, d );
-  d.name="album2";
-  d.contents = JV_Album2_list;
-  putIntoCache( JV_Album2, d );
-  d.name="";
-  d.contents = root_list;
-  putIntoCache( root, d );
+  mkdir( cacheDir.c_str(), 0755 );
+  string cacheFName = cacheDir + "/.cache";
+  if ( boost::filesystem::exists( cacheFName ) ) { 
+    try {
+      std::ifstream ifs(cacheFName.c_str(), ios::binary );
+      boost::archive::text_iarchive ia(ifs);
+      boost::mutex::scoped_lock l(cache_mutex);
+      ia >> cache;
+      return;
+    } catch ( boost::archive::archive_exception ex ) { 
+      std::cerr << ex.what() << "\n";
+      cache.clear();
+    }
+  }
+    pathParser root(""), logs("/logs");
+    struct cacheElement e;
+    e.last_updated = time( NULL );
+    e.type = cacheElement::DIRECTORY;
+    e.name="";
+    e.contents.insert("logs");
+    e.size=sizeof(char)*1024;
+    e.world_readable=true;
+    e.writeable = false;
+    e.authKey = "";
+    putIntoCache( root, e );
+    e.type=cacheElement::FILE;
+    e.name="logs";
+    e.size=0;
+    e.generated=true;
+    putIntoCache( logs, e );
+}
 
-  pathParser p1("/jonathan.verner/album1/photo1.jpg"),
-	     p2("/jonathan.verner/album1/photo2.jpg"),
-	     p3("/jonathan.verner/album2/photo3.jpg"),
-	     p4("/jonathan.verner/album2/photo4.jpg"),
-	     p5("/logs");
-
-  d.type = cacheElement::FILE;
-  d.generated=true;
-  d.size=26;
-  d.name="photo1.jpg";
-  putIntoCache( p1, d );
-  d.name="photo2.jpg";
-  putIntoCache( p2, d );
-  d.name="photo3.jpg";
-  putIntoCache( p3, d );
-  d.name="photo4.jpg";
-  putIntoCache( p4, d );
-  d.name="logs";
-  d.size=0;
-  putIntoCache( p5, d );
+picasaCache::~picasaCache() { 
+  string cacheFName = cacheDir + "/.cache";
+  std::ofstream ofs(cacheFName.c_str(), ios::binary );
+  kill_thread = true;
+  {
+    boost::archive::text_oarchive oa(ofs);
+    boost::mutex::scoped_lock l(cache_mutex);
+    oa << cache;
+  }
+  update_thread->join();
 }
 
 void picasaCache::log( string msg ) { 
@@ -177,7 +195,7 @@ void picasaCache::update_worker() {
   boost::mutex::scoped_lock l(update_queue_mutex);
   l.unlock();
   pathParser p;
-  while( true ) { 
+  while( ! kill_thread ) { 
     if ( work_to_do ) { 
       l.lock();
       p = update_queue.front();
