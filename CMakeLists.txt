@@ -38,9 +38,20 @@ INCLUDE_DIRECTORIES(
 
 FILE(GLOB TINY_XML_SRC ticpp/*.cpp)
 
-SET(PICASAFUSE_SRC
-	gAPI.cpp
+SET(PICASAAPI_SRC
 	curlRequest.cpp
+	gAPI.cpp
+	atomEntry.cpp
+	atomObj.cpp
+	atomFeed.cpp
+	picasaAlbum.h
+	picasaAlbum.cpp
+	picasaPhoto.cpp
+	picasaService.cpp
+)
+
+	
+SET(PICASAFUSE_SRC
 	picasaFS.cpp
 	picasaFUSE.cpp
 	picasaCache.cpp
@@ -48,6 +59,7 @@ SET(PICASAFUSE_SRC
 )
 
 ADD_EXECUTABLE(picasaFUSE
+	${PICASAAPI_SRC}
 	${PICASAFUSE_SRC}
 	${TINY_XML_SRC}
 )
@@ -55,6 +67,28 @@ ADD_EXECUTABLE(picasaFUSE
 ADD_EXECUTABLE(testPathParser
 	testPathParser.cpp
 	pathParser.cpp
+)
+
+ADD_EXECUTABLE(testAlbumList
+	testAlbumList.cpp
+	${PICASAAPI_SRC}
+	${TINY_XML_SRC}
+)
+
+ADD_EXECUTABLE(testPhotoList
+	testPhotoList.cpp
+	${PICASAAPI_SRC}
+	${TINY_XML_SRC}
+)
+
+TARGET_LINK_LIBRARIES(testPhotoList
+	${Boost_LIBRARIES}
+	${CURL_LIBRARIES}
+)
+
+TARGET_LINK_LIBRARIES(testAlbumList
+	${Boost_LIBRARIES}
+	${CURL_LIBRARIES}
 )
 
 TARGET_LINK_LIBRARIES(picasaFUSE
