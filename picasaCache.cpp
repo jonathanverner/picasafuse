@@ -15,6 +15,10 @@
 #include "gAPI.h"
 #include "pathParser.h"
 
+#include "picasaService.h"
+#include "picasaPhoto.h"
+#include "picasaAlbum.h"
+
 #include "picasaCache.h"
 #include "fusexx.hpp"
 
@@ -38,7 +42,6 @@
 
 using namespace std;
 
-
 const struct cacheElement &cacheElement::operator=( const struct cacheElement &e ) {
     type = e.type;
     name = e.name;
@@ -46,6 +49,9 @@ const struct cacheElement &cacheElement::operator=( const struct cacheElement &e
     world_readable = e.world_readable;
     writeable = e.writeable;
     last_updated = e.last_updated;
+    localChanges = e.localChanges;
+    xmlRepresentation = e.xmlRepresentation;
+    picasaObj = e.picasaObj;
     switch (e.type) { 
 	    case cacheElement::DIRECTORY:
 		    authKey = e.authKey;
@@ -57,6 +63,47 @@ const struct cacheElement &cacheElement::operator=( const struct cacheElement &e
 		    return e;
     }
     return e;
+}
+
+void cacheElement::buildPicasaObj(picasaService* picasa) {
+  if ( xmlRepresentation == "" ) return;
+  switch (type) {
+    case cacheElement::DIRECTORY:
+      picasaObj = picasa->albumFromXML( xmlRepresentation );
+      return;
+    case cacheElement::FILE:
+      picasaObj = picasa->photoFromXML( xmlRepresentation );
+      return;
+  }
+}
+
+
+void cacheElement::fromAlbum(picasaAlbum *album) {
+  type = cacheElement::DIRECTORY;
+  name = album->getTitle();
+  size = sizeof(char)*1024;
+  world_readable = (album->getAccessType() == picasaAlbum::PUBLIC);
+  writeable = false;
+  last_updated = time( NULL );
+  authKey = album->getAuthKey();
+  contents.clear();
+  localChanges = false;
+  xmlRepresentation = album->getStringXML();
+  picasaObj = album;
+}
+
+void cacheElement::fromPhoto(picasaPhoto *photo) {
+  type = cacheElement::FILE;
+  name = photo->getTitle();
+  size = photo->getSize();
+  world_readable = true;
+  writeable = false;
+  last_updated = time( NULL );
+  authKey = photo->getAuthKey();
+  contents.clear();
+  localChanges = false;
+  xmlRepresentation = photo->getStringXML();
+  picasaObj = photo;
 }
 
 void cacheMkdir( string cacheDir, const pathParser &p ) { 
@@ -74,6 +121,7 @@ void cacheMkdir( string cacheDir, const pathParser &p ) {
     
 picasaCache::picasaCache( const string &user, const string &pass, const string &ch):
 	api( new gAPI( user, pass, "picasaFUSE" ) ),
+	picasa( new picasaService( user, pass ) ),
 	work_to_do(false), kill_thread(false), cacheDir( ch )
 {
   mkdir( cacheDir.c_str(), 0755 );
@@ -138,7 +186,56 @@ void picasaCache::pleaseUpdate( const pathParser p ) {
   work_to_do = true;
 }
 
+void picasaCache::updateUser ( const string userName ) throw ( enum picasaCache::exceptionType ) { 
+  set<picasaAlbum> albums;
+  set<string> albumDirNames;
+  
+  log( "picasaCache::updateUser("+userName+"):\n" );
 
+  try { 
+    albums = picasa->albumList( userName );
+    log( "  albumList ...OK\n" );
+  } catch ( enum gAPI::exceptionType ex ) { 
+    log( "  User not found (ERROR).\n" );
+    throw OBJECT_DOES_NOT_EXIST;
+  }
+
+
+  struct cacheElement c;
+  pathParser p;
+  
+  // Add user to root directory
+  p.parse( "/" );
+  getFromCache( p, c );
+  c.contents.insert( userName );
+  putIntoCache( p, c );
+
+  c.writeable = ( userName == picasa->getUser() );
+  c.type = cacheElement::DIRECTORY;
+
+
+  for( set<picasaAlbum>::iterator a = albums.begin(); a != albums.end(); ++a )
+    albumDirNames.insert( a->getTitle() );
+
+ 
+  // Add user directory to cache
+  p.parse("/"+userName);
+  getFromCache( p, c );
+  c.world_readable = true;
+  c.contents.clear();
+  c.contents = albumDirNames;
+  c.last_updated = time( NULL );
+  putIntoCache( p, c );
+  log( "  update user dir ...OK\n" );
+  
+  for( set<picasaAlbum>::iterator a = albums.begin(); a != albums.end(); ++a ) { 
+    c.fromAlbum( new picasaAlbum( *a ) );
+    p.parse( "/"+userName+"/"+a->getTitle() );
+    putIntoCache( p, c );
+  }
+
+}
+/*
 void picasaCache::updateUser( const string userName ) throw ( enum picasaCache::exceptionType ) { 
   set<string> albums;
 
@@ -182,7 +279,7 @@ void picasaCache::updateUser( const string userName ) throw ( enum picasaCache::
     p.parse( "/"+userName+"/"+*dir );
     putIntoCache( p, c );
   }
-}
+}*/
 
 
 

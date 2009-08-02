@@ -26,22 +26,29 @@
 #include <boost/shared_ptr.hpp>
 
 class gAPI;
+class picasaService;
 struct fuse_file_info;
 struct stat;
 class pathParser;
+class atomEntry;
+class picasaAlbum;
+class picasaPhoto;
 
 
 struct cacheElement { 
-  enum elementType { DIRECTORY, FILE };
- 
+  enum elementType { DIRECTORY, FILE }; 
   enum elementType type;
   
   /* shared */
   std::string name;
   ssize_t size;
   bool world_readable, writeable;
+  bool localChanges; // true if local changes not yet pushed to the server
 
-  time_t last_updated;
+  std::time_t last_updated;
+  
+  std::string xmlRepresentation; // To reconstruct either picasaPhoto or picasaAlbum from...
+  atomEntry *picasaObj; // Constructed from the xmlRepresentation
 
   /* only for DIRECTORY */
   std::string authKey;
@@ -61,23 +68,26 @@ struct cacheElement {
 	      ar & world_readable;
 	      ar & writeable;
 	      ar & type;
+	      ar & localChanges;
+	      ar & xmlRepresentation;
 
 	      switch ( type ) { 
 		      case cacheElement::DIRECTORY:
 			      ar & authKey;
 			      ar & contents;
+			      picasaObj = NULL;
 			      break;
 		      case cacheElement::FILE:
 			      ar & generated;
 			      ar & cachePath;
+			      picasaObj = NULL;
 			      break;
 	      }
 	
 	    }
-
-
-
-  void *private_data;
+  void fromAlbum( picasaAlbum* album );
+  void fromPhoto( picasaPhoto* photo );
+  void buildPicasaObj( picasaService *picasa );
 };
 
 
@@ -136,6 +146,7 @@ class picasaCache {
 		std::string cacheDir;
 
 		gAPI *api;
+		picasaService *picasa;
 
 		void log( std::string msg );
 };
