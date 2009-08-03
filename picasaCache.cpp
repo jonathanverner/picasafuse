@@ -84,7 +84,7 @@ void cacheElement::fromAlbum(picasaAlbum *album) {
   size = sizeof(char)*1024;
   world_readable = (album->getAccessType() == picasaAlbum::PUBLIC);
   writeable = false;
-  last_updated = time( NULL );
+  last_updated = 0;
   authKey = album->getAuthKey();
   contents.clear();
   localChanges = false;
@@ -98,12 +98,13 @@ void cacheElement::fromPhoto(picasaPhoto *photo) {
   size = photo->getSize();
   world_readable = true;
   writeable = false;
-  last_updated = time( NULL );
+  last_updated = 0;
   authKey = photo->getAuthKey();
   contents.clear();
   localChanges = false;
   xmlRepresentation = photo->getStringXML();
   picasaObj = photo;
+  generated = false;
 }
 
 void cacheMkdir( string cacheDir, const pathParser &p ) { 
