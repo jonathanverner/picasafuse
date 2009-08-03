@@ -69,23 +69,62 @@ pathParser::pathParser():
 }
 
 
+pathParser pathParser::chop() const {
+  pathParser ret;
+  if ( ! valid ) return ret;
+  ret.valid=true;
+  switch( typ ) { 
+    case IMAGE:
+      ret.albumName=albumName;
+      ret.userName=userName;
+      ret.hUser=true;
+      ret.hAlbum=true;
+      ret.hImage=false;
+      ret.typ=ALBUM;
+      break;
+    case ALBUM:
+      ret.userName=userName;
+      ret.hUser=true;
+      ret.hAlbum=false;
+      ret.hImage=false;
+      ret.typ=USER;
+      break;
+    case USER:
+      ret.hUser=false;
+      ret.hAlbum=false;
+      ret.hImage=false;
+      ret.typ=ROOT;
+      break;
+    default:
+      ret.typ=INVALID_OBJECT;
+      ret.valid=false;
+  }
+  return ret;
+}
+
+
 void pathParser::parse( const string &path ) { 
   list<string> componentList = chopString( path, '/' );
+  typ = INVALID_OBJECT;
   switch ( componentList.size() ) { 
 	  case 3:
 		  hImage = true;
 		  image = componentList.back();
 		  componentList.pop_back();
+		  typ = IMAGE;
 	  case 2:
 		  hAlbum = true;
 		  albumName = componentList.back();
 		  componentList.pop_back();
+		  if ( ! hImage ) typ = ALBUM;
 	  case 1:
 		  hUser = true;
 		  userName = componentList.back();
 		  componentList.pop_back();
+		  if ( ! hAlbum) typ = USER;
 	  case 0:
 		  valid = true;
+		  if ( ! hUser ) typ = ROOT;
   }
 }
 
@@ -145,4 +184,36 @@ bool pathParser::operator==( const pathParser &p ) const {
   return ( p.userName == userName && p.albumName == albumName && p.image == image );
 }
 
+
+pathParser pathParser::operator+( const string& name ) const {
+  pathParser ret(*this);
+
+  if ( name.find("/") != string::npos ) { 
+    ret.valid=false;
+    ret.typ = INVALID_OBJECT;
+    return ret;
+  }
+  
+  switch( typ ) { 
+    case ROOT:
+      ret.hUser = true;
+      ret.userName = name;
+      ret.typ=USER;
+      break;
+    case USER:
+      ret.hAlbum = true;
+      ret.albumName = name;
+      ret.typ = ALBUM;
+      break;
+    case ALBUM:
+      ret.hImage = true;
+      ret.image = name;
+      ret.typ = IMAGE;
+      break;
+    default:
+      ret.valid = false;
+      ret.typ = INVALID_OBJECT;
+  }
+  return ret;
+}
 
