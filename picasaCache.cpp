@@ -109,7 +109,7 @@ void cacheElement::fromPhoto(picasaPhoto *photo) {
 
 void cacheMkdir( string cacheDir, const pathParser &p ) { 
   string path = cacheDir+"/";
-  if ( p.haveUser() ) { 
+  if ( p.haveUser() && p.getUser() != "logs" ) { 
     path+=p.getUser();
     mkdir( path.c_str(), 0755 );
     path+="/";
