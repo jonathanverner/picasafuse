@@ -179,6 +179,7 @@ void picasaCache::log( string msg ) {
 }
 
 void picasaCache::pleaseUpdate( const pathParser p ) { 
+  log("Scheduling update of: " + p.getFullName() + "\n");
   if ( ! update_thread ) { 
     update_thread = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&picasaCache::update_worker, this)));
   }
@@ -271,9 +272,12 @@ void picasaCache::update_worker() {
       update_queue.pop_front();
       if ( update_queue.size() == 0 ) work_to_do = false;
       l.unlock();
-      try { 
+      try {
+	log( "update_worker: Processing scheduled job (" + p.getFullName() + ")\n" );
 	doUpdate( p );
-      } catch (enum picasaCache::exceptionType ex ) { }
+      } catch (enum picasaCache::exceptionType ex ) {
+	log( "update_worker: Exception caught while doing update of "+p.getFullName() + "\n");
+      }
     }
   }
 }
@@ -285,7 +289,7 @@ bool picasaCache::getFromCache( const pathParser &p, struct cacheElement &e ) {
 }
 
 void picasaCache::putIntoCache( const pathParser &p, const struct cacheElement &e ) {
-  if ( isDir( p ) ) cacheMkdir( cacheDir, p );
+  cacheMkdir( cacheDir, p );
   putIntoCache( p.getHash(), e );
 }
 
