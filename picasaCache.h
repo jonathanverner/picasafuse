@@ -65,10 +65,7 @@ struct cacheElement {
 	    {
 	      ar & name;
 	      ar & size;
-	      ar & world_readable;
-	      ar & writeable;
 	      ar & type;
-	      ar & localChanges;
 	      ar & xmlRepresentation;
 
 	      switch ( type ) { 
