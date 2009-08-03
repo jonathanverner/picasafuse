@@ -378,6 +378,11 @@ bool picasaCache::exists( const pathParser &path ) {
 int picasaCache::getAttr( const pathParser &path, struct stat *stBuf ) { 
   struct cacheElement e;
   if ( ! getFromCache( path, e ) ) {
+    // If we are not looking at a subdirectory of the root
+    // and the path is not cached it doesn't exist 
+    // (at least not now, maybe at some later point, 
+    // when we update the parent directory)
+    if ( path.getType() != pathParser::USER ) return -ENOENT;
     try {
       doUpdate( path );
     } catch ( enum exceptionType ex ) { 
