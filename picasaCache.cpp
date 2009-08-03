@@ -236,52 +236,6 @@ void picasaCache::updateUser ( const string userName ) throw ( enum picasaCache:
   }
 
 }
-/*
-void picasaCache::updateUser( const string userName ) throw ( enum picasaCache::exceptionType ) { 
-  set<string> albums;
-
-  log( "picasaCache::updateUser("+userName+")\n" );
-
-  try { 
-    albums = api->albumList( userName );
-  } catch ( enum gAPI::exceptionType ex ) { 
-    log( "picasaCache::updateUser("+userName+"): Error: User not found.\n" );
-    throw OBJECT_DOES_NOT_EXIST;
-  }
-
-  struct cacheElement c;
-  pathParser p;
-  
-  // Add user to root directory
-  p.parse( "/" );
-  getFromCache( p, c );
-  c.contents.insert( userName );
-  putIntoCache( p, c );
-
-  c.writeable = ( userName == api->getUser() );
-  c.type = cacheElement::DIRECTORY;
-
-  // Add user directory to cache
-  p.parse("/"+userName);
-  getFromCache( p, c );
-  c.world_readable = true;
-  c.contents.clear();
-  c.contents = albums;
-  c.last_updated = time( NULL );
-  putIntoCache( p, c );
-
-  // Add user albums to cache
-  c.contents.clear();
-  c.world_readable = true; //FIXME
-  c.last_updated = 0;
-  for( set<string>::iterator dir = albums.begin(); dir != albums.end(); ++dir ) { 
-    c.name = *dir;
-    c.authKey = "";
-    p.parse( "/"+userName+"/"+*dir );
-    putIntoCache( p, c );
-  }
-}*/
-
 
 
 void picasaCache::doUpdate( const pathParser p ) throw ( enum picasaCache::exceptionType ) {
