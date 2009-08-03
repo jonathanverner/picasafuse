@@ -123,8 +123,9 @@ class picasaCache {
 		void update_worker();
 		void doUpdate( const pathParser p ) throw ( enum picasaCache::exceptionType );
 
-		void updateUser( const std::string userName ) throw ( enum picasaCache::exceptionType );
-
+		void updateUser( const pathParser p ) throw ( enum picasaCache::exceptionType );
+		void updateAlbum( const pathParser p ) throw ( enum picasaCache::exceptionType );
+		void updateImage( const pathParser p ) throw ( enum picasaCache::exceptionType );
 		void pleaseUpdate( const pathParser p );
 
 

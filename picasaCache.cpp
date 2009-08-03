@@ -188,14 +188,72 @@ void picasaCache::pleaseUpdate( const pathParser p ) {
   work_to_do = true;
 }
 
-void picasaCache::updateUser ( const string userName ) throw ( enum picasaCache::exceptionType ) { 
+/*
+ * Assumes A is already in the cache, otherwise throws
+ */
+void picasaCache::updateAlbum( const pathParser A ) throw ( enum picasaCache::exceptionType ) {
+  cacheElement c,pElement;
+  string pName;
+  log( "picasaCache::updateAlbum("+A.getFullName()+"):\n" );
+  if ( ! getFromCache( A, c ) ) {
+    log( "  ERROR: Object not present in cache, throwing ... \n" );
+    throw OBJECT_DOES_NOT_EXIST;
+  }
+  if ( c.xmlRepresentation == "" ) c.buildPicasaObj(picasa);
+  picasaAlbum *album = (picasaAlbum *) c.picasaObj;
+  if ( ! album->PULL_CHANGES() ) {
+    log( " ERROR: Error updating album info, throwing ... \n" );
+    throw OBJECT_DOES_NOT_EXIST;
+  }
+  list<picasaPhoto *> photos = album->getPhotos();
+  
+  c.fromAlbum( album );
+  
+  for( list<picasaPhoto *>::iterator p = photos.begin(); p != photos.end(); ++p ) { 
+    pName = (*p)->getTitle();
+    c.contents.insert( pName );
+    pElement.fromPhoto( *p );
+    pElement.cachePath = A.getFullName()+"/"+pName;
+    putIntoCache( A + pName, pElement );
+    pleaseUpdate( A + pName );
+  }
+  putIntoCache( A, c );
+}
+
+/*
+ * Assumes P is already in the cache, otherwise throws
+ */
+void picasaCache::updateImage( const pathParser P ) throw ( enum picasaCache::exceptionType ) { 
+  cacheElement c;
+
+  log( "picasaCache::updateImage("+P.getFullName()+"):\n" );
+
+  if ( ! getFromCache( P, c ) ) {
+    log( "  ERROR: Object not present in cache, throwing ... \n" );
+    throw OBJECT_DOES_NOT_EXIST;
+  }
+  if ( c.xmlRepresentation == "" ) c.buildPicasaObj(picasa);
+  picasaPhoto *photo = (picasaPhoto *) c.picasaObj;
+  if ( ! photo->PULL_CHANGES() ) {
+    log( " ERROR: Error updating photo info, throwing ... \n" );
+    throw OBJECT_DOES_NOT_EXIST;
+  }
+  
+  c.fromPhoto( photo );
+  log( " Downloading " + photo->getPhotoURL() + " to " + c.cachePath + "\n" );
+  photo->download(cacheDir+"/"+c.cachePath);
+  log( " Download OK \n" );
+  putIntoCache( P, c );
+}
+
+void picasaCache::updateUser ( const pathParser U ) throw ( enum picasaCache::exceptionType ) { 
   set<picasaAlbum> albums;
   set<string> albumDirNames;
   
-  log( "picasaCache::updateUser("+userName+"):\n" );
+  log( "picasaCache::updateUser("+U.getUser()+"):\n" );
 
   try { 
-    albums = picasa->albumList( userName );
+    albums = picasa->albumList( U.getUser() );
     log( "  albumList ...OK\n" );
   } catch ( enum picasaService::exceptionType ex ) { 
     log( "  User not found (ERROR).\n" );
@@ -209,10 +267,10 @@ void picasaCache::updateUser ( const string userName ) throw ( enum picasaCache:
   // Add user to root directory
   p.parse( "/" );
   getFromCache( p, c );
-  c.contents.insert( userName );
+  c.contents.insert( U.getUser() );
   putIntoCache( p, c );
 
-  c.writeable = ( userName == picasa->getUser() );
+  c.writeable = ( U.getUser() == picasa->getUser() );
   c.type = cacheElement::DIRECTORY;
 
 
@@ -221,7 +279,7 @@ void picasaCache::updateUser ( const string userName ) throw ( enum picasaCache:
 
  
   // Add user directory to cache
-  p.parse("/"+userName);
+  p.parse("/"+U.getUser());
   getFromCache( p, c );
   c.world_readable = true;
   c.contents.clear();
@@ -232,7 +290,7 @@ void picasaCache::updateUser ( const string userName ) throw ( enum picasaCache:
   
   for( set<picasaAlbum>::iterator a = albums.begin(); a != albums.end(); ++a ) { 
     c.fromAlbum( new picasaAlbum( *a ) );
-    p.parse( "/"+userName+"/"+a->getTitle() );
+    p.parse( "/"+U.getUser()+"/"+a->getTitle() );
     putIntoCache( p, c );
   }
 
@@ -245,19 +303,53 @@ void picasaCache::doUpdate( const pathParser p ) throw ( enum picasaCache::excep
   time_t now = time( NULL );
   if ( ! p.isValid() ) return;
   if ( ! p.haveUser() ) return;
-
-  if ( p.haveUser() ) { 
-    np.parse( "/"+p.getUser() );
-    if ( getFromCache( np, c ) ) {
-      if ( now - c.last_updated > 60 ) updateUser( p.getUser() );
-      else {
-	stringstream estream;
-	estream << "Not updating " << p.getUser() << " since " << now << " - " << c.last_updated << " < 60 \n";
-	log(estream.str());
-      }
-    } else {
-	updateUser( p.getUser() );
+  if ( p.getUser() == "logs" ) return;
+  
+  /* Object is already present in the cache */
+  if ( getFromCache( p, c ) ) {
+    
+    long cacheValidity = 0;
+    switch( p.getType() ) { 
+      case pathParser::USER:
+	cacheValidity = 600;
+      case pathParser::ALBUM:
+	cacheValidity = 600;
+      case pathParser::IMAGE:
+	cacheValidity = 60*60*24*30;
     }
+    // If the cached version is recent, do nothing
+    if ( now - c.last_updated < cacheValidity ) {
+	stringstream estream;
+	estream << "Not updating " << p.getFullName() << " since " << now << " - " << c.last_updated << " < 60 \n";
+	log(estream.str());
+	return;
+    };
+    
+    stringstream estream;
+    estream << "doUpdate: p.getType() == " << p.getType() << "\n";
+    log(estream.str());
+   
+    switch( p.getType() ) { 
+      case pathParser::IMAGE:
+	updateImage( p );
+	return;
+      case pathParser::ALBUM:
+	updateAlbum( p );
+	return;
+      case pathParser::USER:
+	updateUser( p.getUser() );
+	return;
+    }
+  } else /* Object not cached yet at all */ {
+    if ( p.haveImage() ) { 
+      doUpdate( p.chop() );
+      updateImage( p );
+    }
+    if ( p.haveAlbum() ) { 
+      doUpdate( p.chop() );
+      updateAlbum( p );
+    }
+    updateUser( p );
   }
 }
 
@@ -459,10 +551,11 @@ int picasaCache::read( const pathParser &path, char *buf, size_t size, off_t off
 	return fillBufFromString( e.cachePath, buf, size, offset );
       } else return fillBufFromString( "Data not yet available...\n", buf, size, offset );
     }
-    int fd = open( e.cachePath.c_str() , O_RDONLY );
+    string absPath = cacheDir + "/" + e.cachePath;
+    int fd = open( absPath.c_str() , O_RDONLY );
     if ( fd == -1 ) { 
       char *errBuf = strerror( errno );
-      string err = "Error opening "+e.cachePath+" (";
+      string err = "Error opening "+absPath+" (";
       err+=errBuf;
       err+=")\n";
       return fillBufFromString( err, buf, size, offset );
