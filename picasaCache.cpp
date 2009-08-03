@@ -196,7 +196,7 @@ void picasaCache::updateUser ( const string userName ) throw ( enum picasaCache:
   try { 
     albums = picasa->albumList( userName );
     log( "  albumList ...OK\n" );
-  } catch ( enum gAPI::exceptionType ex ) { 
+  } catch ( enum picasaService::exceptionType ex ) { 
     log( "  User not found (ERROR).\n" );
     throw OBJECT_DOES_NOT_EXIST;
   }
