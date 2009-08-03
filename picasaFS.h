@@ -9,7 +9,7 @@ class picasaCache;
 
 class PicasaFS : public fusexx::fuse<PicasaFS> {
           public:
-		  PicasaFS ( const std::string &user="", const std::string &pass="", const std::string &cacheDir="/tmp/.picasaFUSE" ); // Constructor
+		  PicasaFS ( const std::string &user="", const std::string &pass="", const std::string &cacheDir="/home/joni-test/.picasaFUSE" ); // Constructor
 
                   // Overload the fuse methods
 		  static int getattr (const char *, struct stat *);
