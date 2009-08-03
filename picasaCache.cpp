@@ -446,6 +446,7 @@ int fillBufFromString( string data, char *buf, size_t size, off_t offset ) {
 int picasaCache::read( const pathParser &path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi ) {
   if ( ! exists( path ) ) return 0;
   if ( ! isFile( path ) ) return 0;
+  int ret=0;
 
   struct cacheElement e;
   if ( getFromCache( path, e ) ) { 
@@ -462,7 +463,9 @@ int picasaCache::read( const pathParser &path, char *buf, size_t size, off_t off
       err+=")\n";
       return fillBufFromString( err, buf, size, offset );
     }
-    return pread(fd,buf,size, offset);
+    ret = pread(fd,buf,size, offset);
+    close(fd);
+    return ret;
   }
   return fillBufFromString( "Data not yet available...", buf, size, offset );
 }
