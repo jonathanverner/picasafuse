@@ -65,8 +65,17 @@ bool atomEntry::UPDATE() {
   return loadFromXML( api->PUT( editURL, getStringXML() ) );
 }
 
+bool atomEntry::PULL_CHANGES() { 
+  return loadFromURL( selfURL );
+}
+
+bool atomEntry::PUSH_CHANGES() { 
+  return UPDATE();
+}
+
 bool atomEntry::DELETE() { 
   api->DELETE( editURL );
   delete xml;
   return true; // FIXME: Find out status from api->DELETE
 }
+

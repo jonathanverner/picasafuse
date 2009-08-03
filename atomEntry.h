@@ -38,6 +38,9 @@ class atomEntry : public atomObj {
 
 		bool UPDATE(); 
 		bool DELETE();
+		
+		bool PUSH_CHANGES();
+		bool PULL_CHANGES();
 
 		friend class atomFeed;
 };
