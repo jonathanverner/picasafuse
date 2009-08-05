@@ -51,6 +51,7 @@ const struct cacheElement &cacheElement::operator=( const struct cacheElement &e
     last_updated = e.last_updated;
     localChanges = e.localChanges;
     xmlRepresentation = e.xmlRepresentation;
+    cachedVersion = e.cachedVersion;
     picasaObj = e.picasaObj;
     switch (e.type) { 
 	    case cacheElement::DIRECTORY:

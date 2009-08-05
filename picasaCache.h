@@ -50,6 +50,8 @@ struct cacheElement {
   std::string xmlRepresentation; // To reconstruct either picasaPhoto or picasaAlbum from...
   atomEntry *picasaObj; // Constructed from the xmlRepresentation
 
+  std::string cachedVersion; // The "checksum" of the object (ETag)
+   
   /* only for DIRECTORY */
   std::string authKey;
   std::set<std::string> contents;
@@ -57,7 +59,13 @@ struct cacheElement {
   /* only for FILE */
   bool generated;
   std::string cachePath;
+ 
 
+  cacheElement(): name(""), size(0), world_readable(false), writeable(false),
+		  localChanges(false), last_updated(0), xmlRepresentation(""),
+		  picasaObj(NULL), cachedVersion(""), authKey(""), generated(false),
+		  cachePath("") {};
+		  
   const struct cacheElement &operator=(const struct cacheElement &e);
 
   template<class Archive>
@@ -67,6 +75,7 @@ struct cacheElement {
 	      ar & size;
 	      ar & type;
 	      ar & xmlRepresentation;
+	      ar & cachedVersion;
 	      ar & last_updated;
 
 	      switch ( type ) { 
