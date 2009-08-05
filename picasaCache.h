@@ -95,7 +95,7 @@ class picasaCache {
 
 
 	public:
-		picasaCache( const std::string &user = "", const std::string &password = "", const std::string &cache = "~/.picasaFUSE" );
+		picasaCache( const std::string &user = "", const std::string &password = "", const std::string &cache = "/tmp/.picasaFUSE", int updateInterval = 600 );
 		~picasaCache();
 
 		bool isDir( const pathParser &p );
@@ -112,6 +112,7 @@ class picasaCache {
 
 
 	private:
+		int updateInterval;
 		boost::shared_ptr<boost::thread> update_thread;
 		boost::mutex update_queue_mutex;
 		std::list<pathParser> update_queue;

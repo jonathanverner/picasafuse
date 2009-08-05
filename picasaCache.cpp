@@ -120,11 +120,12 @@ void cacheMkdir( string cacheDir, const pathParser &p ) {
   }
 }
     
-picasaCache::picasaCache( const string &user, const string &pass, const string &ch):
+picasaCache::picasaCache( const string& user, const string& pass, const string& ch, int UpdateInterval):
 	api( new gAPI( user, pass, "picasaFUSE" ) ),
 	picasa( new picasaService( user, pass ) ),
-	work_to_do(false), kill_thread(false), cacheDir( ch )
+	work_to_do(false), kill_thread(false), cacheDir( ch ), updateInterval(UpdateInterval)
 {
+  if ( updateInterval < 1 ) updateInterval = 600;
   mkdir( cacheDir.c_str(), 0755 );
   string cacheFName = cacheDir + "/.cache";
   if ( boost::filesystem::exists( cacheFName ) ) { 
@@ -308,26 +309,26 @@ void picasaCache::doUpdate( const pathParser p ) throw ( enum picasaCache::excep
   /* Object is already present in the cache */
   if ( getFromCache( p, c ) ) {
     
-    long cacheValidity = 0;
+    /*long cacheValidity = updateInterval;
     switch( p.getType() ) { 
       case pathParser::USER:
 	cacheValidity = 600;
       case pathParser::ALBUM:
 	cacheValidity = 600;
       case pathParser::IMAGE:
-	cacheValidity = 60*60*24*30;
-    }
+	cacheValidity = 600;
+    }*/
     // If the cached version is recent, do nothing
-    if ( now - c.last_updated < cacheValidity ) {
+    if ( now - c.last_updated < updateInterval ) {
 	stringstream estream;
-	estream << "Not updating " << p.getFullName() << " since " << now << " - " << c.last_updated << " < 60 \n";
+	estream << "Not updating " << p.getFullName() << " since " << now << " - " << c.last_updated << " < " << updateInterval << " \n";
 	log(estream.str());
 	return;
     };
     
     stringstream estream;
-    estream << "doUpdate: p.getType() == " << p.getType() << "\n";
-    log(estream.str());
+    //estream << "doUpdate: p.getType() == " << p.getType() << "\n";
+    //log(estream.str());
    
     switch( p.getType() ) { 
       case pathParser::IMAGE:

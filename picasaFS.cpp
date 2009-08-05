@@ -15,8 +15,8 @@ using namespace std;
 
 
 // Constructor
-PicasaFS::PicasaFS ( const string &user, const string &pass, const string &cacheDir ) : 
-		cache( new picasaCache( user, pass, cacheDir ) )
+PicasaFS::PicasaFS ( const string &user, const string &pass, const string &cacheDir, int updateInterval ) : 
+		cache( new picasaCache( user, pass, cacheDir, updateInterval ) )
 {
         // all we're doing is initialize the member variables
 }
