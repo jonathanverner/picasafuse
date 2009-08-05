@@ -87,9 +87,10 @@ void cacheElement::fromAlbum(picasaAlbum *album) {
   writeable = false;
   last_updated = 0;
   authKey = album->getAuthKey();
-  contents.clear();
+//  contents.clear();
   localChanges = false;
   xmlRepresentation = album->getStringXML();
+  // if ( picasaObj != album )  delete picasaObj;
   picasaObj = album;
 }
 
@@ -104,6 +105,7 @@ void cacheElement::fromPhoto(picasaPhoto *photo) {
   contents.clear();
   localChanges = false;
   xmlRepresentation = photo->getStringXML();
+  // if ( picasaObj != photo ) delete picasaObj;
   picasaObj = photo;
   generated = false;
 }
@@ -199,27 +201,96 @@ void picasaCache::updateAlbum( const pathParser A ) throw ( enum picasaCache::ex
   log( "picasaCache::updateAlbum("+A.getFullName()+"):\n" );
 
   if ( ! getFromCache( A, c ) ) {
-    log( "  ERROR: Object not present in cache, throwing ... \n" );
+    int authKeyPos = A.getAlbum().find( "?authkey=" );
+    if ( authKeyPos != string::npos ) { // Possibly an unlisted album, need not be in the cache
+      string authKey = A.getAlbum().substr( authKeyPos+9 ),
+             albumName = A.getAlbum().substr( 0, authKeyPos );
+      picasaAlbum album = picasa->getAlbumByName( albumName, A.getUser(), authKey );
+      c.fromAlbum( new picasaAlbum( album ) );
+      pathParser B = A.chop() + album.getTitle();
+      putIntoCache( B, c );
+      getFromCache( A.chop(), c );
+      c.contents.insert( album.getTitle() );
+      if ( album.getAccessType() != picasaAlbum::UNLISTED ) {
+	log( " WTF???: album " + album.getTitle() + " is not unlisted\n" );
+	throw UNEXPECTED_ERROR;
+      }
+      putIntoCache( A.chop(), c );
+      updateAlbum( B );
+      return;
+    }
+    // A listed album must be present in the cache to be updated !!!
+    //log( "  ERROR: Object not present in cache, throwing ... \n" );
     throw OBJECT_DOES_NOT_EXIST;
   }
-  if ( c.xmlRepresentation == "" ) c.buildPicasaObj(picasa);
-  picasaAlbum *album = (picasaAlbum *) c.picasaObj;
+  
+  if ( c.localChanges ) return;
+  
+  if ( ! c.picasaObj ) c.buildPicasaObj(picasa);
+  if ( ! c.picasaObj ) {
+    log( "updateAlbum( " +A.getFullName()+" ): picasaAlbum could not be reconstructed\n" );
+    log( "    offending xml:" + c.xmlRepresentation + "\n" );
+    removeFromCache( A );
+    throw UNEXPECTED_ERROR;
+  }
+  
+  picasaAlbum *album = dynamic_cast<picasaAlbum *>(c.picasaObj);
   if ( ! album->PULL_CHANGES() ) {
     log( " ERROR: Error updating album info, throwing ... \n" );
+    removeFromCache( A );
     throw OBJECT_DOES_NOT_EXIST;
   }
-  list<picasaPhoto *> photos = album->getPhotos();
-  
   c.fromAlbum( album );
   
-  for( list<picasaPhoto *>::iterator p = photos.begin(); p != photos.end(); ++p ) { 
+  // If albumName changed, update the parent accordingly
+  if ( A.getAlbum() != c.name ) { 
+    cacheElement u;
+    getFromCache( A.chop(), u );
+    u.contents.erase( A.getAlbum() );
+    u.contents.insert( c.name );
+    putIntoCache( A.chop(), u );
+  }
+  
+  list<picasaPhoto *> photos = album->getPhotos();
+  
+  set<string> photoTitles;
+  for( list<picasaPhoto *>::iterator p = photos.begin(); p != photos.end(); ++p )
+    photoTitles.insert( (*p)->getTitle() );
+
+  // Remove photos present in the album but not on picasa
+  // which have no local changes
+  set<string> toDelete;
+  // find candidates first
+  for( set<string>::iterator p = c.contents.begin(); p != c.contents.end(); ++p ) { 
+    if ( photoTitles.find( *p ) == photoTitles.end() ) {
+      getFromCache( A + *p, pElement );
+      if ( ! pElement.localChanges ) toDelete.insert( *p );
+    }
+  }
+  // then remove them
+  for( set<string>::iterator p = toDelete.begin(); p != toDelete.end(); ++p ) {
+  	removeFromCache( A + *p );
+	c.contents.erase( *p );
+  }
+
+  // Add new photos and update old ones
+  for( list<picasaPhoto *>::iterator p = photos.begin(); p != photos.end(); ++p ) {   
     pName = (*p)->getTitle();
-    c.contents.insert( pName );
-    pElement.fromPhoto( *p );
-    pElement.cachePath = A.getFullName()+"/"+pName;
-    putIntoCache( A + pName, pElement );
+    if ( c.contents.find( pName ) == c.contents.end() ) { // A new photo
+      pElement.fromPhoto( *p );
+      c.contents.insert( pName );
+      pElement.cachePath = A.getFullName()+"/"+pName;
+      putIntoCache( A + pName, pElement );
+    } else { // photo already in cache
+      getFromCache( A + pName, pElement );
+      if ( ! pElement.localChanges ) {
+	pElement.fromPhoto( *p );
+	putIntoCache( A + pName, pElement );
+      }
+    }
     pleaseUpdate( A + pName );
   }
+
   putIntoCache( A, c );
 }
 
@@ -244,13 +315,30 @@ void picasaCache::updateImage( const pathParser P ) throw ( enum picasaCache::ex
   
   if ( ! photo->PULL_CHANGES() ) {
     log( " ERROR: Error updating photo info, throwing ... \n" );
+    cacheElement a;
+    getFromCache( P.chop(), a );
+    a.contents.erase( photo->getTitle() );
+    putIntoCache( P.chop(), a );
+    removeFromCache( P );
     throw OBJECT_DOES_NOT_EXIST;
   }
   
+  if ( c.cachedVersion != photo->getVersion() ) {
+    log( " Downloading " + photo->getPhotoURL() + " to " + c.cachePath + "\n" );
+    photo->download(cacheDir+"/"+c.cachePath); // FIXME: make atomic.
+    c.cachedVersion = photo->getVersion();
+    log( " Download OK \n" );
+  }
   c.fromPhoto( photo );
-  log( " Downloading " + photo->getPhotoURL() + " to " + c.cachePath + "\n" );
-  photo->download(cacheDir+"/"+c.cachePath);
-  log( " Download OK \n" );
+  
+ // If photoName changed, update the parent accordingly
+  if ( P.getImage() != c.name ) { 
+    cacheElement a;
+    getFromCache( P.chop(), a );
+    a.contents.erase( P.getImage() );
+    a.contents.insert( c.name );
+    putIntoCache( P.chop(), a );
+  }
   putIntoCache( P, c );
 }
 
@@ -265,6 +353,10 @@ void picasaCache::updateUser ( const pathParser U ) throw ( enum picasaCache::ex
     //log( "  albumList ...OK\n" );
   } catch ( enum picasaService::exceptionType ex ) { 
     log( "  User not found (ERROR).\n" );
+    // We remove the user from the cache, if it was present.
+    // (we assume it has no local changes, since we
+    //  do not allow creation of users)
+    removeFromCache( U );
     throw OBJECT_DOES_NOT_EXIST;
   }
 
@@ -294,20 +386,47 @@ void picasaCache::updateUser ( const pathParser U ) throw ( enum picasaCache::ex
    * Add user directory to cache
    */
   p.parse("/"+U.getUser());
-  getFromCache( p, c );
-  c.world_readable = true;
-  c.contents.clear();
-  c.contents = albumDirNames;
+
+  if ( getFromCache( p, c ) ) { // If already present, we need to update it
+    // Add already present unlisted albums to albumDirNames
+    //FIXME: How do we know when an unlisted album has been deleted ?
+    for( set<string>::iterator a = c.contents.begin(); a != c.contents.end(); ++a ) { 
+      if ( getFromCache( p + *a, d ) ) {
+	if ( ! d.picasaObj ) d.buildPicasaObj( picasa );
+	if ( d.picasaObj ) { 
+	  if ( dynamic_cast<picasaAlbum*>(d.picasaObj)->getAccessType() == picasaAlbum::UNLISTED ) {	    
+	    albumDirNames.insert( *a );
+	  } else {
+	    log( " ignoring public album " + *a + "\n" );
+	  }
+	} else {
+	  log( " cache element " + (p + *a).getFullName()+ " does not have object\n" );
+	}
+      }
+    }
+    // Remove albums present in the cache but not on picasa
+    // provided there are no local changes
+    for( set<string>::iterator a = c.contents.begin(); a != c.contents.end(); ++a ) {
+      if ( albumDirNames.find( *a ) == albumDirNames.end() && getFromCache( p + *a, d) ) {
+	if ( ! d.localChanges ) removeFromCache( p + *a );
+	else albumDirNames.insert( *a );
+      }
+    }
+    c.contents = albumDirNames;
+  } else { // User not yet present in the cache
+    c.contents = albumDirNames;
+  }
+  
+  c.world_readable=true;
   c.last_updated = time( NULL );
   putIntoCache( p, c );
   log( "  update user dir ...OK\n" );
-  
-  for( set<picasaAlbum>::iterator a = albums.begin(); a != albums.end(); ++a ) { 
+  c.contents.clear();
+  for( set<picasaAlbum>::iterator a = albums.begin(); a != albums.end(); ++a ) {
+    getFromCache( U + a->getTitle(), c);
     c.fromAlbum( new picasaAlbum( *a ) );
-    p.parse( "/"+U.getUser()+"/"+a->getTitle() );
-    putIntoCache( p, c );
+    putIntoCache( U + a->getTitle(), c);
   }
-
 }
 
 

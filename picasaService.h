@@ -50,6 +50,13 @@ class picasaService {
 		  if ( authKey.compare("") != 0 ) auth = "?authkey="+authKey; 
 		  return "http://picasaweb.google.com/data/entry/api/user/"+user+"/albumid/"+albumID+auth;
 		}
+		
+		static std::string albumNameURL( const std::string &user, const std::string &albumName, const std::string &authKey = "" ) { 
+		  std::string auth="";
+		  if ( authKey.compare("") != 0 ) auth = "?authkey="+authKey; 
+		  return "http://picasaweb.google.com/data/entry/api/user/"+user+"/album/"+albumName+auth;
+		}
+		
 
 		  
 
@@ -60,7 +67,8 @@ class picasaService {
 	public:
 		picasaService( const std::string & email = "", const std::string &password = "" );
 		std::set<picasaAlbum> albumList( const std::string &user = "" ) throw ( enum exceptionType );
-		picasaAlbum getAlbum( const std::string &albumID, const std::string &user = "", const std::string &authKey = "" ) throw ( enum exceptionType );
+		picasaAlbum getAlbumByID( const std::string &albumID, const std::string &user = "", const std::string &authKey = "" ) throw ( enum exceptionType );
+		picasaAlbum getAlbumByName( const std::string &albumName, const std::string &user = "", const std::string &authKey = "" ) throw ( enum exceptionType );
 		atomEntry *albumFromXML( const std::string &xml ) const;
 		atomEntry *photoFromXML( const std::string &xml ) const;
 
