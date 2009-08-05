@@ -191,12 +191,13 @@ void picasaCache::pleaseUpdate( const pathParser p ) {
 }
 
 /*
- * Assumes A is already in the cache, otherwise throws
+ * Assumes A is already in the cache (or unlisted), otherwise throws
  */
 void picasaCache::updateAlbum( const pathParser A ) throw ( enum picasaCache::exceptionType ) {
-  cacheElement c,pElement;
+  cacheElement c, pElement;
   string pName;
   log( "picasaCache::updateAlbum("+A.getFullName()+"):\n" );
+
   if ( ! getFromCache( A, c ) ) {
     log( "  ERROR: Object not present in cache, throwing ... \n" );
     throw OBJECT_DOES_NOT_EXIST;
@@ -263,10 +264,13 @@ void picasaCache::updateUser ( const pathParser U ) throw ( enum picasaCache::ex
   }
 
 
-  struct cacheElement c;
+  struct cacheElement c,d;
   pathParser p;
   
-  // Add user to root directory
+  /*
+   * Add user to root directory
+   */
+  
   p.parse( "/" );
   getFromCache( p, c );
   c.contents.insert( U.getUser() );
@@ -276,11 +280,14 @@ void picasaCache::updateUser ( const pathParser U ) throw ( enum picasaCache::ex
   c.type = cacheElement::DIRECTORY;
 
 
+  // Construct a list of the public albums;
   for( set<picasaAlbum>::iterator a = albums.begin(); a != albums.end(); ++a )
     albumDirNames.insert( a->getTitle() );
 
  
-  // Add user directory to cache
+  /*
+   * Add user directory to cache
+   */
   p.parse("/"+U.getUser());
   getFromCache( p, c );
   c.world_readable = true;

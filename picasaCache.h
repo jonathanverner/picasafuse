@@ -34,6 +34,7 @@ class atomEntry;
 class picasaAlbum;
 class picasaPhoto;
 
+#include "atomEntry.h"
 
 struct cacheElement { 
   enum elementType { DIRECTORY, FILE }; 
@@ -49,7 +50,6 @@ struct cacheElement {
   
   std::string xmlRepresentation; // To reconstruct either picasaPhoto or picasaAlbum from...
   atomEntry *picasaObj; // Constructed from the xmlRepresentation
-
   std::string cachedVersion; // The "checksum" of the object (ETag)
    
   /* only for DIRECTORY */
@@ -67,6 +67,8 @@ struct cacheElement {
 		  cachePath("") {};
 		  
   const struct cacheElement &operator=(const struct cacheElement &e);
+  
+  void buildPicasaObj( picasaService *picasa );
 
   template<class Archive>
 	    void serialize(Archive & ar,  const unsigned int version)
@@ -90,17 +92,23 @@ struct cacheElement {
 			      picasaObj = NULL;
 			      break;
 	      }
-	
 	    }
+  /*
+   * Takes ownership of album
+   */
   void fromAlbum( picasaAlbum* album );
+
+  /*
+   * Takes ownership of photo
+   */
   void fromPhoto( picasaPhoto* photo );
-  void buildPicasaObj( picasaService *picasa );
+  
 };
 
 
 class picasaCache { 
 	public:
-		enum exceptionType { OBJECT_DOES_NOT_EXIST, UNIMPLEMENTED, ACCESS_DENIED };
+		enum exceptionType { OBJECT_DOES_NOT_EXIST, UNIMPLEMENTED, ACCESS_DENIED, UNEXPECTED_ERROR };
 
 
 
