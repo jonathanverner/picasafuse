@@ -490,11 +490,15 @@ int picasaCache::getAttr( const pathParser &path, struct stat *stBuf ) {
   stBuf->st_size = e.size;
   switch ( e.type ) { 
 	  case cacheElement::DIRECTORY:
-		  stBuf->st_mode = S_IFDIR | 0755;
+		  stBuf->st_mode = S_IFDIR | S_IRUSR | S_IXUSR;
+		  if ( e.world_readable ) stBuf->st_mode |= S_IXGRP | S_IRGRP | S_IROTH | S_IXOTH;
+		  if ( e.writeable ) stBuf->st_mode |= S_IWUSR;
 		  stBuf->st_nlink = 2;
 		  return 0;
 	  case cacheElement::FILE:
-		  stBuf->st_mode = S_IFREG;
+		  stBuf->st_mode = S_IFREG | S_IRUSR;
+		  if ( e.world_readable ) stBuf->st_mode |= S_IRGRP | S_IROTH;
+		  if ( e.writeable ) stBuf->st_mode |= S_IWUSR;
 		  stBuf->st_nlink = 1;
 		  return 0;
   }
