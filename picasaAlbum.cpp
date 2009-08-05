@@ -119,7 +119,7 @@ string picasaAlbum::getUser() const {
   
 enum picasaAlbum::accessType picasaAlbum::getAccessType() const { 
   string acSTR=xml->FirstChildElement()->FirstChildElement("gphoto:access")->GetText(false);
-  if ( acSTR.compare("private") != 0 ) return UNLISTED;
+  if ( acSTR == "private" ) return UNLISTED;
   else return PUBLIC; /*FIXME*/
 }
 
