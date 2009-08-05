@@ -429,7 +429,14 @@ void picasaCache::removeFromCache( const pathParser &p ) {
   cache.erase( p.getHash() );
   cl.unlock();
   log( "rm -rf " + cacheDir + "/" + p.getFullName() + "\n" );
-  boost::filesystem::remove_all( cacheDir + "/" + p.getFullName() );
+  if ( c.type == cacheElement::FILE ) { 
+    try {
+      boost::filesystem::remove( cacheDir+"/"+c.cachePath );
+    } catch (...) {
+    }
+  } else {
+      boost::filesystem::remove_all( cacheDir + "/" + p.getFullName() );
+  }
 }
   
 
