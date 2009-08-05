@@ -426,6 +426,7 @@ void picasaCache::removeFromCache( const pathParser &p ) {
   struct cacheElement c = cache[parent.getHash()];
   c.contents.erase(me);
   cache[parent.getHash()] = c;
+  cache.erase( p.getHash() );
   cl.unlock();
   log( "rm -rf " + cacheDir + "/" + p.getFullName() + "\n" );
   boost::filesystem::remove_all( cacheDir + "/" + p.getFullName() );
