@@ -235,8 +235,13 @@ void picasaCache::updateImage( const pathParser P ) throw ( enum picasaCache::ex
     log( "  ERROR: Object not present in cache, throwing ... \n" );
     throw OBJECT_DOES_NOT_EXIST;
   }
-  if ( c.xmlRepresentation == "" ) c.buildPicasaObj(picasa);
-  picasaPhoto *photo = (picasaPhoto *) c.picasaObj;
+  
+  if ( c.localChanges ) return;
+  
+  c.buildPicasaObj(picasa);
+  picasaPhoto *photo = dynamic_cast<picasaPhoto *>(c.picasaObj);
+  if ( ! photo ) throw UNEXPECTED_ERROR;
+  
   if ( ! photo->PULL_CHANGES() ) {
     log( " ERROR: Error updating photo info, throwing ... \n" );
     throw OBJECT_DOES_NOT_EXIST;
