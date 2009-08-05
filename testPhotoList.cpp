@@ -43,7 +43,7 @@ int main( int argc, char **argv ) {
   }
 
   picasaService service( email, password );
-  picasaAlbum al = service.getAlbum( album, user, authKey );
+  picasaAlbum al = service.getAlbumByID( album, user, authKey );
   cout << "###############################################\n";
   cout << "(as seen by "<<email<<")\n";
   cout << al;
