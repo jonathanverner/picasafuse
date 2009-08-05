@@ -67,6 +67,7 @@ struct cacheElement {
 	      ar & size;
 	      ar & type;
 	      ar & xmlRepresentation;
+	      ar & last_updated;
 
 	      switch ( type ) { 
 		      case cacheElement::DIRECTORY:
