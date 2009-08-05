@@ -180,7 +180,7 @@ void picasaCache::log( string msg ) {
 }
 
 void picasaCache::pleaseUpdate( const pathParser p ) { 
-  log("Scheduling update of: " + p.getFullName() + "\n");
+//  log("Scheduling update of: " + p.getFullName() + "\n");
   if ( ! update_thread ) { 
     update_thread = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&picasaCache::update_worker, this)));
   }
@@ -255,7 +255,7 @@ void picasaCache::updateUser ( const pathParser U ) throw ( enum picasaCache::ex
 
   try { 
     albums = picasa->albumList( U.getUser() );
-    log( "  albumList ...OK\n" );
+    //log( "  albumList ...OK\n" );
   } catch ( enum picasaService::exceptionType ex ) { 
     log( "  User not found (ERROR).\n" );
     throw OBJECT_DOES_NOT_EXIST;
@@ -366,7 +366,7 @@ void picasaCache::update_worker() {
       if ( update_queue.size() == 0 ) work_to_do = false;
       l.unlock();
       try {
-	log( "update_worker: Processing scheduled job (" + p.getFullName() + ")\n" );
+	//log( "update_worker: Processing scheduled job (" + p.getFullName() + ")\n" );
 	doUpdate( p );
       } catch (enum picasaCache::exceptionType ex ) {
 	log( "update_worker: Exception caught while doing update of "+p.getFullName() + "\n");
