@@ -322,7 +322,7 @@ void picasaCache::updateAlbum( const pathParser A ) throw ( enum picasaCache::ex
     }
     pleaseUpdate( A + pName );
   }
-
+  c.last_updated = time( NULL );
   putIntoCache( A, c );
 }
 
@@ -371,6 +371,7 @@ void picasaCache::updateImage( const pathParser P ) throw ( enum picasaCache::ex
     a.contents.insert( c.name );
     putIntoCache( P.chop(), a );
   }
+  c.last_updated = time( NULL );
   putIntoCache( P, c );
 }
 
@@ -454,9 +455,12 @@ void picasaCache::updateUser ( const pathParser U ) throw ( enum picasaCache::ex
   putIntoCache( p, c );
   log( "  update user dir ...OK\n" );
   c.contents.clear();
+  time_t lu;
   for( set<picasaAlbum>::iterator a = albums.begin(); a != albums.end(); ++a ) {
-    getFromCache( U + a->getTitle(), c);
+    if ( getFromCache( U + a->getTitle(), c) ) lu = c.last_updated;
+    else lu = 0;
     c.fromAlbum( new picasaAlbum( *a ) );
+    c.last_updated = lu;
     putIntoCache( U + a->getTitle(), c);
   }
 }
