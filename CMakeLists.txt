@@ -75,6 +75,12 @@ ADD_EXECUTABLE(testAlbumList
 	${TINY_XML_SRC}
 )
 
+ADD_EXECUTABLE(testNewAlbum
+	testNewAlbum.cpp
+	${PICASAAPI_SRC}
+	${TINY_XML_SRC}
+)
+
 ADD_EXECUTABLE(testPhotoList
 	testPhotoList.cpp
 	${PICASAAPI_SRC}
@@ -87,6 +93,12 @@ TARGET_LINK_LIBRARIES(testPhotoList
 )
 
 TARGET_LINK_LIBRARIES(testAlbumList
+	${Boost_LIBRARIES}
+	${CURL_LIBRARIES}
+)
+
+
+TARGET_LINK_LIBRARIES(testNewAlbum
 	${Boost_LIBRARIES}
 	${CURL_LIBRARIES}
 )
