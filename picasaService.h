@@ -69,6 +69,7 @@ class picasaService {
 		std::set<picasaAlbum> albumList( const std::string &user = "" ) throw ( enum exceptionType );
 		picasaAlbum getAlbumByID( const std::string &albumID, const std::string &user = "", const std::string &authKey = "" ) throw ( enum exceptionType );
 		picasaAlbum getAlbumByName( const std::string &albumName, const std::string &user = "", const std::string &authKey = "" ) throw ( enum exceptionType );
+		picasaAlbum newAlbum( const std::string &Title, const std::string &Desc = "", const std::string &Location = "", picasaAlbum::accessType access = picasaAlbum::PUBLIC, bool comments = false, const std::string &keywords = "");
 		atomEntry *albumFromXML( const std::string &xml ) const;
 		atomEntry *photoFromXML( const std::string &xml ) const;
 

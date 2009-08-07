@@ -51,6 +51,13 @@ picasaAlbum picasaService::getAlbumByID( const std::string &albumID, const std::
 }
 
 
+picasaAlbum picasaService::newAlbum( const std::string& Title, const std::string& Desc, const std::string& Location, picasaAlbum::accessType access, bool comments, const std::string& keywords ) {
+  picasaAlbum album( api, Title, Desc, Location, access, comments, keywords );
+  album.deleteXmlOnExit=false;
+  return album;
+}
+
+
 picasaAlbum picasaService::getAlbumByName( const string& albumName, const string& user, const string& authKey ) throw ( enum exceptionType ) {
   picasaAlbum album( api );
   std::string us = user;
