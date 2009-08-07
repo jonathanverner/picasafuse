@@ -171,6 +171,7 @@ picasaCache::picasaCache( const string& user, const string& pass, const string& 
       cache.clear();
     }
   }
+  last_saved = time( NULL );
     pathParser root(""), logs("/logs");
     struct cacheElement e;
     e.last_updated = time( NULL );
@@ -190,16 +191,22 @@ picasaCache::picasaCache( const string& user, const string& pass, const string& 
     log( "----------CACHE LOADED FROM DISK\n" );
 }
 
-picasaCache::~picasaCache() { 
-  string cacheFName = cacheDir + "/.cache";
-  std::ofstream ofs(cacheFName.c_str(), ios::binary );
+picasaCache::~picasaCache() {
   kill_thread = true;
+  saveCacheToDisk();
+  update_thread->join();
+}
+
+void picasaCache::saveCacheToDisk() { 
+  string cacheFName = cacheDir + "/.cache";
+  log( "---------CACHE SAVED TO DISK\n" );
+  std::ofstream ofs( cacheFName.c_str(), ios::binary );
   {
     boost::archive::text_oarchive oa(ofs);
     boost::mutex::scoped_lock l(cache_mutex);
     oa << cache;
   }
-  update_thread->join();
+  last_saved = time( NULL );
 }
 
 void picasaCache::log( string msg ) { 
@@ -526,6 +533,7 @@ void picasaCache::update_worker() {
   boost::mutex::scoped_lock l(update_queue_mutex);
   l.unlock();
   pathParser p;
+  time_t now;
   while( ! kill_thread ) { 
     if ( work_to_do ) { 
       l.lock();
@@ -540,6 +548,8 @@ void picasaCache::update_worker() {
 	log( "update_worker: Exception ("+exceptionString( ex ) + ") caught while doing update of "+p.getFullName() + "\n");
       }
     }
+    now = time( NULL );
+    if ( now - last_saved > 180 ) saveCacheToDisk();
   }
 }
 

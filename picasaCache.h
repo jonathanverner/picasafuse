@@ -158,6 +158,9 @@ class picasaCache {
 		void putIntoCache( const pathParser &p, const struct cacheElement &e );
 		void putIntoCache( const std::string &key, const struct cacheElement &e );
 		void removeFromCache( const pathParser &p );
+		
+		time_t last_saved;
+		void saveCacheToDisk();
 
 		boost::mutex cache_mutex;
 		std::map< std::string, struct cacheElement > cache;
