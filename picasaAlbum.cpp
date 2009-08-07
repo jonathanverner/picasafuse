@@ -63,6 +63,7 @@ picasaAlbum::picasaAlbum( gAPI *API, const string &Title, const string &Descript
 	          <entry xmlns='http://www.w3.org/2005/Atom'  \
 		  xmlns:media='http://search.yahoo.com/mrss/' \
 		  xmlns:gphoto='http://schemas.google.com/photos/2007'> \
+		    <link rel='edit' href='http://picasaweb.google.com/data/feed/api/user/"+api->getUser()+"'/>\
 		    <title type='text'>"+Title+"</title> \
 		    <summary type='text'>"+Description+"</summary> \
 		    <gphoto:location>"+Location+"</gphoto:location> \
@@ -72,8 +73,11 @@ picasaAlbum::picasaAlbum( gAPI *API, const string &Title, const string &Descript
 		        <media:keywords>"+keywords+"</media:keywords> \
 		    </media:group> \
 		    <category scheme='http://schemas.google.com/g/2005#kind' term='http://schemas.google.com/photos/2007#album'></category> \
-		  </entry></xml>";
+		  </entry>";
+  //std:cerr<<"Creating new album:\n----------------------------\n"<<xml<<"\n-----------------------\n";
   loadFromXML( xml );
+  //editURL ="http://picasaweb.google.com/data/feed/api/user/"+api->getUser();
+  newly_created = true;
 }
 
 
@@ -166,6 +170,7 @@ std::ostream &operator<<(std::ostream &out, const picasaAlbum &album) {
   out << "Location: " << album.getLocation() << "\n";
   out << "User: " << album.getUser() << "\n";
   out << "AuthKey: " << album.getAuthKey() << "\n";
+  out << "selfURL: " << album.selfURL << "\n";
   return out;
 }
 
