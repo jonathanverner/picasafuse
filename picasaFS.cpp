@@ -97,4 +97,22 @@ int PicasaFS::rmdir( const char *path ) {
   return 0;
 }
 
+int PicasaFS::mkdir( const char *path, mode_t mode ) {
+  pathParser p(path);
+  try {
+    self->cache->my_mkdir( p );
+  } catch( enum picasaCache::exceptionType ex ) { 
+    switch( ex ) { 
+      case picasaCache::ACCESS_DENIED:
+	return -EACCES;
+      case picasaCache::UNIMPLEMENTED:
+	return -EPERM;
+      default:
+	return -ENOENT;
+    }
+  }
+  return 0;
+}
+
+
 

@@ -231,6 +231,46 @@ void picasaCache::pleaseUpdate( const pathParser p ) {
   work_to_do = true;
 }
 
+
+void picasaCache::newAlbum( const pathParser A ) throw ( enum picasaCache::exceptionType ) {
+  picasaAlbum album = picasa->newAlbum( A.getAlbum() );
+  cacheElement c;
+  if ( ! getFromCache( A.chop(), c ) ) { 
+    updateUser( A.chop() );
+  }
+  if ( ! getFromCache( A.chop(), c ) ) throw UNEXPECTED_ERROR;
+  c.fromAlbum( new picasaAlbum( album ) );
+  c.contents.clear();
+  c.localChanges = true;
+  c.last_updated = 0;
+  putIntoCache( A, c );
+  getFromCache( A.chop(), c );
+  c.contents.insert( album.getTitle() );
+  putIntoCache( A.chop(), c );
+  pleaseUpdate( A );
+}
+
+void picasaCache::pushAlbum( const pathParser A ) throw ( enum picasaCache::exceptionType ) {
+  cacheElement c;
+  if ( ! getFromCache( A, c ) ) throw OBJECT_DOES_NOT_EXIST;
+  if ( ! c.localChanges ) return;
+  
+  if ( ! c.picasaObj ) c.buildPicasaObj(picasa);
+  if ( ! c.picasaObj ) {
+    log( "updateAlbum( " +A.getFullName()+" ): picasaAlbum could not be reconstructed\n" );
+    log( "    offending xml:" + c.xmlRepresentation + "\n" );
+    removeFromCache( A );
+    throw UNEXPECTED_ERROR;
+  }
+  
+  picasaAlbum *album = dynamic_cast<picasaAlbum *>( c.picasaObj );
+  if ( ! album->PUSH_CHANGES() ) throw OPERATION_FAILED;
+  c.fromAlbum( album );
+  c.localChanges = false;
+  putIntoCache( A, c );
+}
+  
+
 /*
  * Assumes A is already in the cache (or unlisted), otherwise throws
  */
@@ -263,7 +303,10 @@ void picasaCache::updateAlbum( const pathParser A ) throw ( enum picasaCache::ex
     throw OBJECT_DOES_NOT_EXIST;
   }
   
-  if ( c.localChanges ) return;
+  if ( c.localChanges ) {
+    pushAlbum( A );
+    return;
+  }
   
   if ( ! c.picasaObj ) c.buildPicasaObj(picasa);
   if ( ! c.picasaObj ) {
@@ -710,6 +753,18 @@ void picasaCache::rmdir( const pathParser &p ) throw ( enum picasaCache::excepti
     removeFromCache( p );
     return;
   } else throw UNIMPLEMENTED;
+}
+
+void picasaCache::my_mkdir( const pathParser &p ) throw ( enum picasaCache::exceptionType ) {
+  switch( p.getType() ) { 
+    case pathParser::USER:
+      throw UNIMPLEMENTED;
+    case pathParser::ALBUM:
+      if ( p.getUser() != picasa->getUser() ) throw ACCESS_DENIED;
+      newAlbum( p );
+    case pathParser::IMAGE:
+      throw OPERATION_NOT_SUPPORTED;
+  }
 }
 
 set<string> picasaCache::ls( const pathParser &path ) throw ( enum picasaCache::exceptionType) {

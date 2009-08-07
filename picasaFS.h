@@ -17,6 +17,7 @@ class PicasaFS : public fusexx::fuse<PicasaFS> {
 		  static int fuse_open (const char *, struct fuse_file_info *);
 		  static int read (const char *, char *, size_t, off_t, struct fuse_file_info *);
 		  static int rmdir( const char * );
+		  static int mkdir( const char *, mode_t );
 		  static void destroy(void *);
 
 	  private:

@@ -79,6 +79,7 @@ struct cacheElement {
 	      ar & xmlRepresentation;
 	      ar & cachedVersion;
 	      ar & last_updated;
+	      ar & localChanges;
 
 	      switch ( type ) { 
 		      case cacheElement::DIRECTORY:
@@ -128,6 +129,7 @@ class picasaCache {
 		int getAttr( const pathParser &p, struct stat *stBuf );
 
 		void rmdir( const pathParser &p ) throw (enum exceptionType);
+		void my_mkdir( const pathParser &p ) throw (enum exceptionType);
 
 
 	private:
@@ -145,6 +147,8 @@ class picasaCache {
 		void updateImage( const pathParser p ) throw ( enum picasaCache::exceptionType );
 		void pleaseUpdate( const pathParser p );
 
+		void pushAlbum( const pathParser p ) throw ( enum picasaCache::exceptionType );
+		void newAlbum( const pathParser p ) throw ( enum picasaCache::exceptionType );
 
 		// Warning: NOT THREAD SAFE. Need to acquire a lock on cache_mutex
 		// before calling this function.
