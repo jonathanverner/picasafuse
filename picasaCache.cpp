@@ -42,6 +42,34 @@
 
 using namespace std;
 
+string picasaCache::exceptionString( exceptionType ex ) {
+  string ret;
+  switch( ex ) { 
+    case OBJECT_DOES_NOT_EXIST:
+      ret = "OBJECT_DOES_NOT_EXIST";
+      break;
+    case UNIMPLEMENTED:
+      ret = "UNIMPLEMENTED";
+      break;
+    case ACCESS_DENIED:
+      ret = "ACCESS_DENIED";
+      break;
+    case OPERATION_NOT_SUPPORTED:
+      ret = "OPERATION_NOT_SUPPORTED";
+      break;
+    case UNEXPECTED_ERROR:
+      ret = "UNEXPECTED_ERROR";
+      break;
+    case OPERATION_FAILED:
+      ret = "OPERATION_FAILED";
+      break;
+    default:
+      ret = "unknown exception";
+      break;
+  }
+  return ret;
+}
+
 const struct cacheElement &cacheElement::operator=( const struct cacheElement &e ) {
     type = e.type;
     name = e.name;
@@ -159,6 +187,7 @@ picasaCache::picasaCache( const string& user, const string& pass, const string& 
     e.size=0;
     e.generated=true;
     putIntoCache( logs, e );
+    log( "----------CACHE LOADED FROM DISK\n" );
 }
 
 picasaCache::~picasaCache() { 
@@ -174,10 +203,13 @@ picasaCache::~picasaCache() {
 }
 
 void picasaCache::log( string msg ) { 
+  time_t now = time( NULL );
+  stringstream os;
+  os << now << ": " << msg;
   pathParser p("/logs");
   struct cacheElement c;
   getFromCache( p, c );
-  c.cachePath+=msg;
+  c.cachePath+=os.str();
   c.size = c.cachePath.size();
   putIntoCache( p, c );
 }
@@ -501,7 +533,7 @@ void picasaCache::update_worker() {
 	//log( "update_worker: Processing scheduled job (" + p.getFullName() + ")\n" );
 	doUpdate( p );
       } catch (enum picasaCache::exceptionType ex ) {
-	log( "update_worker: Exception caught while doing update of "+p.getFullName() + "\n");
+	log( "update_worker: Exception ("+exceptionString( ex ) + ") caught while doing update of "+p.getFullName() + "\n");
       }
     }
   }

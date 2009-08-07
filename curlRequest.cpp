@@ -147,11 +147,12 @@ bool curlRequest::perform() {
 		  curl_slist_free_all( curlHDRS );
 		  return false;
   }
-  if ( curl_easy_perform(curl) ) {
+  CURLcode cd = curl_easy_perform(curl);
+  if ( cd ) {
       if ( outfl ) fclose( outfl );
       if ( infl ) fclose( infl );
       curl_slist_free_all( curlHDRS );
-      cerr << "getFeed() Error: CURL ERROR IN OPERATION\n";
+      cerr << "getFeed() Error: CURL ERROR IN OPERATION(" <<cd <<") \n";
       return false;
   }
   curl_easy_getinfo( curl, CURLINFO_RESPONSE_CODE, &status );
