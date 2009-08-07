@@ -23,7 +23,7 @@ namespace ticpp {
   class Element;
 }
 
-class atomEntry : public atomObj { 
+class atomEntry : public atomObj {
 
 	protected:
 	
@@ -43,6 +43,9 @@ class atomEntry : public atomObj {
 		bool PULL_CHANGES();
 
 		friend class atomFeed;
+		
+	protected:
+		bool newly_created;
 };
 
 

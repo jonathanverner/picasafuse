@@ -24,12 +24,11 @@
 
 using namespace std;
 
-atomEntry::atomEntry( gAPI *API ): atomObj( API ) {};
+atomEntry::atomEntry( gAPI *API ): atomObj( API ), newly_created(false) {};
 
-atomEntry::atomEntry(const atomEntry& e): atomObj(e) {
-}
+atomEntry::atomEntry(const atomEntry& e): atomObj(e), newly_created( e.newly_created ) {};
 
-atomEntry::atomEntry( gAPI *API, const ticpp::Element &entry ): atomObj( API ) { 
+atomEntry::atomEntry( gAPI *API, const ticpp::Element &entry ): atomObj( API ), newly_created(false) { 
   extractURLs( &entry );
   loadFromURL( selfURL );
 };
@@ -61,7 +60,10 @@ void atomEntry::setTitle(std::string Title) {
   }
 }
 
-bool atomEntry::UPDATE() { 
+bool atomEntry::UPDATE() {
+  std::cerr<< "atomEntry::UPDATE() -> target url: " << editURL << "\n";
+  if ( ! xml ) return false;
+  if ( newly_created ) return loadFromXML( api->POST( editURL, getStringXML() ) );
   return loadFromXML( api->PUT( editURL, getStringXML() ) );
 }
 
