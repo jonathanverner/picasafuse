@@ -739,6 +739,13 @@ int picasaCache::getAttr( const pathParser &path, struct stat *stBuf ) {
 		  if ( e.world_readable ) stBuf->st_mode |= S_IRGRP | S_IROTH;
 		  if ( e.writeable ) stBuf->st_mode |= S_IWUSR;
 		  stBuf->st_nlink = 1;
+		  if ( ! e.generated ) { 
+		    string fp = cacheDir + "/" + e.cachePath;
+		    struct stat myStat;
+		    if ( stat( fp.c_str(), &myStat ) == 0 ) { 
+		      stBuf->st_size = myStat.st_size;
+		    }
+		  }
 		  return 0;
   }
 }
