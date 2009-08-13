@@ -701,6 +701,40 @@ bool picasaCache::exists( const pathParser &path ) {
   return false;
 }
 
+string picasaCache::getXAttr( const pathParser &p, const string &attrName ) throw (enum exceptionType) {
+  cacheElement c;
+  log( "picasaCache::getXAttr( " + p.getFullName() + ", " + attrName + " )\n" );
+  cerr << " picasaCache::getXAttr( " + p.getFullName() + ", " + attrName + " )\n";
+  if ( ! getFromCache( p, c ) ) throw OBJECT_DOES_NOT_EXIST;
+  c.buildPicasaObj( picasa );
+  if ( ! c.picasaObj ) throw UNEXPECTED_ERROR;
+  if ( attrName == "AuthKey" && p.getType() == pathParser::ALBUM ) {
+    return dynamic_cast<picasaAlbum *>(c.picasaObj)->getAuthKey();
+  }
+  string ret; 
+  try {
+    ret = c.picasaObj->getAttr( attrName );
+  } catch ( atomObj::exceptionType ) {
+    throw OBJECT_DOES_NOT_EXIST;
+  }
+  return ret;
+}
+
+list<string> picasaCache::listXAttr( const pathParser &p ) throw (enum exceptionType) { 
+  cacheElement c;
+  if ( ! getFromCache( p, c ) ) throw OBJECT_DOES_NOT_EXIST;
+  c.buildPicasaObj( picasa );
+  if ( ! c.picasaObj ) throw UNEXPECTED_ERROR;
+  list<string> ret;
+  try {
+    ret = c.picasaObj->listAttr();
+    ret.push_back( "AuthKey" );
+  } catch ( atomObj::exceptionType ) {
+    throw OBJECT_DOES_NOT_EXIST;
+  }
+  return ret;
+}
+
 int picasaCache::getAttr( const pathParser &path, struct stat *stBuf ) { 
   struct cacheElement e;
   if ( ! getFromCache( path, e ) ) {

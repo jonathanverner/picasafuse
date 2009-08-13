@@ -154,6 +154,35 @@ string atomObj::getVersion() const {
   }
 }
 
+string atomObj::getAttr( const string &attrName ) const {
+  if ( attrName == "SelfURL" ) return selfURL;
+  if ( attrName == "EditURL" ) return editURL;
+  try {
+    if ( attrName == "Author" ) return getAuthor();
+    if ( attrName == "Title" ) return getTitle();
+    ticpp::Element *root = xml->FirstChildElement();
+    return root->FirstChildElement( attrName )->GetText();
+  } catch ( ticpp::Exception &ex ) {
+    throw GENERAL_ERROR;
+  }
+}
+
+list<string> atomObj::listAttr() const {
+  list<string> ret;
+  ret.push_back( "Author" );
+  ret.push_back( "Title" );
+  ret.push_back( "SelfURL" );
+  ret.push_back( "EditURL" );
+  ticpp::Iterator< ticpp::Element > attrs;
+  for( attrs = attrs.begin( xml->FirstChildElement() ); attrs != attrs.end(); attrs++ ) {
+    cerr << "+ " << attrs->Value() <<";";
+    cerr.flush();
+    ret.push_back( attrs->Value() );
+  }
+  return ret;
+}
+
+
 string atomObj::getAuthor() const { 
   return xml->FirstChildElement()->FirstChildElement("author")->FirstChildElement("name")->GetText(false);
 }

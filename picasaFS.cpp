@@ -9,6 +9,8 @@
 
 #include <unistd.h>
 #include <errno.h>
+#include <attr/xattr.h>
+
 #include <iostream>
 
 using namespace std;
@@ -39,6 +41,43 @@ int PicasaFS::getattr (const char *path, struct stat *stbuf) {
   return ret;
 }
 
+int PicasaFS::getxattr( const char *path, const char *attrName, char *buf, size_t sz ) {
+  pathParser p( path );
+  string attr( attrName );
+  string value;
+  int userPos = attr.find( "user." );
+  if ( userPos == string::npos ) return -ENOATTR;
+  try {
+    value = self->cache->getXAttr( p, attr.substr( 5 ) );
+  } catch ( enum picasaCache::exceptionType ex ) {
+    return -ENOATTR;
+  }
+  if ( sz == 0 ) return value.size();
+  if ( value.size()  > sz ) return -ERANGE;
+  memcpy( buf, value.c_str(), value.size() );
+  return value.size();
+}
+
+int PicasaFS::listxattr( const char *path, char *buf, size_t sz ) {
+  list<string> attrList;
+  int ret = 0;
+  pathParser p( path );
+  try {
+    attrList = self->cache->listXAttr( p );
+  } catch ( enum picasaCache::exceptionType ex ) {
+    return -ENOENT;
+  }
+  string attrName;
+  for( list<string>::iterator attr = attrList.begin(); attr != attrList.end(); ++attr ) { 
+    attrName = "user." + *attr;
+    if ( 0 < sz && sz < ret + attrName.size() + 1 ) return -ERANGE;
+    if ( sz > 0 && buf != NULL ) {
+      memcpy( buf, attrName.c_str(), attrName.size() + 1 );
+      buf += attrName.size()+1;
+    }
+    ret += attrName.size()+1;
+  }
+  return ret;
 }
 
 int PicasaFS::readdir(const char *path, void *buf, fuse_fill_dir_t filler,

@@ -15,6 +15,8 @@ class PicasaFS : public fusexx::fuse<PicasaFS> {
 
                   // Overload the fuse methods
 		  static int getattr (const char *, struct stat *);
+		  static int getxattr (const char *, const char *, char *, size_t );
+		  static int listxattr ( const char *, char *, size_t );
 		  static int readdir (const char *, void *, fuse_fill_dir_t, off_t, struct fuse_file_info *);
 		  static int fuse_open (const char *, struct fuse_file_info *);
 		  static int read (const char *, char *, size_t, off_t, struct fuse_file_info *);

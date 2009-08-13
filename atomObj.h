@@ -15,6 +15,7 @@
  ***************************************************************/
 
 #include <string>
+#include <list>
 
 class gAPI;
 
@@ -61,6 +62,9 @@ class atomObj {
 		std::string getTitle() const;
 		std::string getSelfURL() const;
 		std::string getVersion() const;
+
+		std::string getAttr( const std::string &attrName ) const;
+		std::list<std::string> listAttr() const;
 
 		std::string getStringXML();
 		

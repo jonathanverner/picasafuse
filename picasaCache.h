@@ -126,6 +126,8 @@ class picasaCache {
 
 		std::set<std::string> ls( const pathParser &p ) throw (enum exceptionType);
                 int read( const pathParser &p, char *buf, size_t size, off_t offset, struct fuse_file_info *fi );
+		std::string getXAttr( const pathParser &p, const std::string &attrName ) throw (enum exceptionType);
+		std::list<std::string> listXAttr( const pathParser &p ) throw (enum exceptionType);
 		int getAttr( const pathParser &p, struct stat *stBuf );
 
 		void rmdir( const pathParser &p ) throw (enum exceptionType);
