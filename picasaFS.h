@@ -2,6 +2,8 @@
 
 #include <string>
 
+#include <sys/types.h>
+
 class pathParser;
 class picasaCache;
 
@@ -19,6 +21,8 @@ class PicasaFS : public fusexx::fuse<PicasaFS> {
 		  static int rmdir( const char * );
 		  static int mkdir( const char *, mode_t );
 		  static void destroy(void *);
+		  uid_t UID;
+		  gid_t GID;
 
 	  private:
 

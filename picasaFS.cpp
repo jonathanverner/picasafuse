@@ -16,7 +16,7 @@ using namespace std;
 
 // Constructor
 PicasaFS::PicasaFS ( const string &user, const string &pass, const string &cacheDir, int updateInterval ) : 
-		cache( new picasaCache( user, pass, cacheDir, updateInterval ) )
+		cache( new picasaCache( user, pass, cacheDir, updateInterval ) ), UID( getuid() ), GID( getgid() )
 {
         // all we're doing is initialize the member variables
 }
@@ -32,9 +32,13 @@ void PicasaFS::destroy( void * ) {
 int PicasaFS::getattr (const char *path, struct stat *stbuf) {
   pathParser p(path);
   // Zero out the file stat buffer
-  memset (stbuf, 0, sizeof (struct stat));
+  memset( stbuf, 0, sizeof (struct stat) );
+  int ret = self->cache->getAttr( p, stbuf );
+  stbuf->st_gid = self->GID;
+  stbuf->st_uid = self->UID;
+  return ret;
+}
 
-  return self->cache->getAttr( p, stbuf );
 }
 
 int PicasaFS::readdir(const char *path, void *buf, fuse_fill_dir_t filler,
