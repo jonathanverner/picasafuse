@@ -21,6 +21,8 @@
 #include <map>
 #include <set>
 
+#include <iosfwd>
+
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/shared_ptr.hpp>
@@ -40,11 +42,17 @@ struct cacheElement {
   enum elementType { DIRECTORY, FILE }; 
   enum elementType type;
   
+  /* cacheElement format version */
+  int version;
+  
   /* shared */
   std::string name;
   ssize_t size;
   bool world_readable, writeable;
   bool localChanges; // true if local changes not yet pushed to the server
+  bool finalized; // false for files which were changed and not yet closed, true for everything else
+                  // (also not cached to disk)
+  int numOfOpenWr;
 
   std::time_t last_updated;
   
@@ -64,7 +72,7 @@ struct cacheElement {
   cacheElement(): name(""), size(0), world_readable(false), writeable(false),
 		  localChanges(false), last_updated(0), xmlRepresentation(""),
 		  picasaObj(NULL), cachedVersion(""), authKey(""), generated(false),
-		  cachePath("") {};
+		  cachePath(""), numOfOpenWr(0) {};
 		  
   const struct cacheElement &operator=(const struct cacheElement &e);
   
@@ -104,6 +112,7 @@ struct cacheElement {
    */
   void fromPhoto( picasaPhoto* photo );
   
+  friend std::ostream &operator<<( std::ostream &out, const cacheElement &element );
 };
 
 
@@ -115,7 +124,7 @@ class picasaCache {
 
 
 	public:
-		picasaCache( const std::string &user = "", const std::string &password = "", const std::string &cache = "/tmp/.picasaFUSE", int updateInterval = 600 );
+		picasaCache( const std::string &user = "", const std::string &password = "", const std::string &cache = "/tmp/.picasaFUSE", int updateInterval = 600, long maxPix = 0 );
 		~picasaCache();
 
 		bool isDir( const pathParser &p );
@@ -129,26 +138,39 @@ class picasaCache {
 		std::string getXAttr( const pathParser &p, const std::string &attrName ) throw (enum exceptionType);
 		std::list<std::string> listXAttr( const pathParser &p ) throw (enum exceptionType);
 		int getAttr( const pathParser &p, struct stat *stBuf );
-
+		
+		void unlink( const pathParser &p ) throw ( enum exceptionType );
 		void rmdir( const pathParser &p ) throw (enum exceptionType);
+		void create( const pathParser &p ) throw (enum exceptionType);
 		void my_mkdir( const pathParser &p ) throw (enum exceptionType);
+		void my_open( const pathParser &p, int flags ) throw ( enum exceptionType );
+	        int my_write( const pathParser &arg1, const char* arg2, size_t arg3, off_t arg4, fuse_file_info* arg5 );
+		void my_close( const pathParser &p );
+		
+		void sync();
 
 
 	private:
+	  
+		long numOfPixels;
+		
 		int updateInterval;
 		boost::shared_ptr<boost::thread> update_thread;
-		boost::mutex update_queue_mutex;
-		std::list<pathParser> update_queue;
+		boost::mutex update_queue_mutex, local_change_queue_mutex;
+		std::list<pathParser> update_queue,local_change_queue;
 		volatile bool work_to_do;
 		volatile bool kill_thread;
 		void update_worker();
 		void doUpdate( const pathParser p ) throw ( enum picasaCache::exceptionType );
+		void pushChange( const pathParser p ) throw ( enum picasaCache::exceptionType );
 
 		void updateUser( const pathParser p ) throw ( enum picasaCache::exceptionType );
 		void updateAlbum( const pathParser p ) throw ( enum picasaCache::exceptionType );
 		void updateImage( const pathParser p ) throw ( enum picasaCache::exceptionType );
 		void pleaseUpdate( const pathParser p );
+		void localChange( const pathParser p );
 
+		void pushImage( const pathParser p ) throw ( enum picasaCache::exceptionType );
 		void pushAlbum( const pathParser p ) throw ( enum picasaCache::exceptionType );
 		void newAlbum( const pathParser p ) throw ( enum picasaCache::exceptionType );
 

@@ -9,8 +9,10 @@ FIND_PACKAGE(CURL REQUIRED)
 SET(Boost_MINIMUM_VERSION "1.39")
 SET(Boost_ADDITIONAL_VERSIONS "1.39.0")
 SET(Boost_INCLUDE_DIR "/usr/local/include/boost-1_39")
+SET(Boost_USE_STATIC_LIBS OFF)
 
-FIND_PACKAGE(Boost COMPONENTS thread filesystem serialization REQUIRED)
+FIND_PACKAGE(Boost COMPONENTS thread filesystem system serialization REQUIRED)
+FIND_PACKAGE(ImageMagick COMPONENTS Magick++ REQUIRED)
 
 
 
@@ -33,10 +35,15 @@ INCLUDE_DIRECTORIES(
 	${CURL_INCLUDE_DIRS}
 	${CMAKE_CURRENT_SOURCE_DIR} 
 	${CMAKE_CURRENT_BINARY_DIR}
+        ${ImageMagick_INCLUDE_DIRS}
 )
 
 
 FILE(GLOB TINY_XML_SRC ticpp/*.cpp)
+
+SET(IMAGE_MANIP_SRC
+	convert.cpp
+)
 
 SET(PICASAAPI_SRC
 	curlRequest.cpp
@@ -44,7 +51,6 @@ SET(PICASAAPI_SRC
 	atomEntry.cpp
 	atomObj.cpp
 	atomFeed.cpp
-	picasaAlbum.h
 	picasaAlbum.cpp
 	picasaPhoto.cpp
 	picasaService.cpp
@@ -62,6 +68,7 @@ ADD_EXECUTABLE(picasaFUSE
 	${PICASAAPI_SRC}
 	${PICASAFUSE_SRC}
 	${TINY_XML_SRC}
+	${IMAGE_MANIP_SRC}
 )
 
 ADD_EXECUTABLE(testPathParser
@@ -87,6 +94,13 @@ ADD_EXECUTABLE(testPhotoList
 	${TINY_XML_SRC}
 )
 
+ADD_EXECUTABLE(testPhotoUpload
+        testPhotoUpload.cpp
+        ${PICASAAPI_SRC}
+        ${TINY_XML_SRC}
+	${IMAGE_MANIP_SRC}
+)
+
 TARGET_LINK_LIBRARIES(testPhotoList
 	${Boost_LIBRARIES}
 	${CURL_LIBRARIES}
@@ -103,10 +117,17 @@ TARGET_LINK_LIBRARIES(testNewAlbum
 	${CURL_LIBRARIES}
 )
 
+TARGET_LINK_LIBRARIES(testPhotoUpload
+	${Boost_LIBRARIES}
+	${CURL_LIBRARIES}
+        ${ImageMagick_LIBRARIES}
+)
+
 TARGET_LINK_LIBRARIES(picasaFUSE
 	${Boost_LIBRARIES}
 	${CURL_LIBRARIES}
 	${FUSE_LIBRARY}
+	${ImageMagick_LIBRARIES}
 )
 
 

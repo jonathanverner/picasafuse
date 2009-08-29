@@ -16,9 +16,23 @@
 using namespace std;
 
 
+int exToRet( enum picasaCache::exceptionType ex ) { 
+  switch( ex ) { 
+    case picasaCache::ACCESS_DENIED:
+      return -EACCES;
+    case picasaCache::UNIMPLEMENTED:
+      return -EPERM;
+    case picasaCache::OBJECT_DOES_NOT_EXIST:
+      return -ENOENT;
+    default:
+      return -ENOENT;
+  }
+}
+
+
 // Constructor
-PicasaFS::PicasaFS ( const string &user, const string &pass, const string &cacheDir, int updateInterval ) : 
-		cache( new picasaCache( user, pass, cacheDir, updateInterval ) ), UID( getuid() ), GID( getgid() )
+PicasaFS::PicasaFS ( const string &user, const string &pass, const string &cacheDir, int updateInterval, int maxPixels ) : 
+		cache( new picasaCache( user, pass, cacheDir, updateInterval, maxPixels ) ), UID( getuid() ), GID( getgid() )
 {
         // all we're doing is initialize the member variables
 }
@@ -26,10 +40,6 @@ PicasaFS::PicasaFS ( const string &user, const string &pass, const string &cache
 void PicasaFS::destroy( void * ) { 
   delete self->cache;
 }
-
-
-
-
 
 int PicasaFS::getattr (const char *path, struct stat *stbuf) {
   pathParser p(path);
@@ -41,6 +51,11 @@ int PicasaFS::getattr (const char *path, struct stat *stbuf) {
   stbuf->st_uid = self->UID;
   cerr << "getattr("<<p.getFullName()<<"): success ("<<ret<<")"<<endl;
   return ret;
+}
+
+int PicasaFS::fgetattr( const char *path, struct stat *stbuf, struct fuse_file_info *) {
+  cerr << "fgetattr calling getattr..."<<endl;
+  return PicasaFS::getattr( path, stbuf );
 }
 
 int PicasaFS::getxattr( const char *path, const char *attrName, char *buf, size_t sz ) {
@@ -106,14 +121,35 @@ int PicasaFS::readdir(const char *path, void *buf, fuse_fill_dir_t filler,
         return 0;
 }
 
+
+int PicasaFS::create( const char *path, mode_t mode, struct fuse_file_info *fi) { 
+  pathParser p(path);
+  cerr << "create("<<p.getFullName()<<"): start"<<endl;
+  try {
+    self->cache->create( p );
+    return fuse_open( path, fi );
+  } catch ( enum picasaCache::exceptionType ex ) { 
+    return exToRet( ex );
+  }
+  cerr << "create("<<p.getFullName()<<"): success"<<endl;
+  return 0;
+}
+
+
 int PicasaFS::fuse_open(const char *path, struct fuse_file_info *fi) {
   pathParser p(path);
-  if ( ! self->cache->exists( p ) ) return -ENOENT;
   cerr << "fuse_open("<<p.getFullName()<<"): start"<<endl;
+  if ( ! self->cache->exists( p ) ) { 
+    cerr << " Opening a nonexisting file " << p.getFullName() << endl;
+    return -ENOENT;
+  }
   self->cache->needPath( p );
-  // Only allow read-only access
-  if((fi->flags & 3) != O_RDONLY)
-    return -EACCES;
+  try { 
+    self->cache->my_open( p, fi->flags );
+    fi->fh = 0;
+  } catch ( enum picasaCache::exceptionType ex ) {
+    return exToRet( ex );
+  }
   cerr << "fuse_open("<<p.getFullName()<<"): success"<<endl;
   return 0;
 }
@@ -130,18 +166,39 @@ int PicasaFS::read(const char *path, char *buf, size_t size, off_t offset,
 	return ret;
 }
 
+int PicasaFS::write( const char *path, const char *buf, size_t size, off_t offset,
+		     struct fuse_file_info *fi ) {
+  pathParser p(path);
+  cerr << "write("<<p.getFullName()<<"): start"<<endl;
+  int ret= self->cache->my_write( p, buf, size, offset, fi );
+  cerr << "write("<<p.getFullName()<<"): success ("<< ret <<")"<<endl;
+  return ret;
+  
+}
+int PicasaFS::unlink( const char *path ) { 
+  pathParser p(path);
+  cerr << "unlink("<<p.getFullName()<<"): start"<<endl;
+  try { 
+    self->cache->unlink( p );
+  } catch ( enum picasaCache::exceptionType ex ) {
+    return exToRet( ex );
+  }
+  cerr << "unlink("<<p.getFullName()<<"): success"<<endl;
+  return 0;
+}
+      
 int PicasaFS::rmdir( const char *path ) { 
   pathParser p(path);
   try { 
     self->cache->rmdir( p );
-  } catch ( enum picasaCache::exceptionType ex ) { 
-    switch ( ex ) { 
-	    case picasaCache::ACCESS_DENIED:
-		    return -EACCES;
-	    case picasaCache::UNIMPLEMENTED:
-		    return -EPERM;
-	    default:
-		    return -ENOENT;
+  } catch ( enum picasaCache::exceptionType ex ) {
+    switch( ex ) { 
+      case picasaCache::OPERATION_FAILED:
+	return -ENOTEMPTY;
+      case picasaCache::OPERATION_NOT_SUPPORTED:
+	return -ENOTDIR;
+      default:
+	return exToRet( ex );
     }
   }
   return 0;
@@ -153,17 +210,19 @@ int PicasaFS::mkdir( const char *path, mode_t mode ) {
     self->cache->my_mkdir( p );
     cerr << "mkdir( " << p.getFullName() << " ): success ! " << endl;
   } catch( enum picasaCache::exceptionType ex ) { 
-    switch( ex ) { 
-      case picasaCache::ACCESS_DENIED:
-	return -EACCES;
-      case picasaCache::UNIMPLEMENTED:
-	return -EPERM;
-      default:
-	return -ENOENT;
-    }
+    cerr << "mkdir( " << p.getFullName() << " ): failure ! " << picasaCache::exceptionString( ex ) << endl;
+    return exToRet( ex );
   }
   return 0;
 }
 
+int PicasaFS::release( const char *path, struct fuse_file_info *fi ) { 
+  pathParser p(path);
+  try {
+    self->cache->my_close( p );
+  } catch ( enum picasaCache::exceptionType ex ) { 
+  }
+  return 0;
+}
 
 

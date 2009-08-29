@@ -51,7 +51,7 @@ class picasaAlbum : public atomEntry {
 		void setAccessType( enum accessType access );
 
 
-		picasaPhoto *addPhoto( const std::string &fileName, const std::string &Title="", const std::string &Summary = ""   );
+		picasaPhoto *addPhoto( const std::string &fileName, const std::string &Summary = "", const std::string &Title = ""   ) throw ( enum atomObj::exceptionType );
 
 		std::list<picasaPhoto *> getPhotos();
 

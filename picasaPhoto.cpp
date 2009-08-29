@@ -11,6 +11,7 @@
  *CHANGES:
  ***************************************************************/
 
+#include <boost/filesystem/operations.hpp>
 
 #include "picasaPhoto.h"
 #include "gAPI.h"
@@ -44,7 +45,7 @@ picasaPhoto::picasaPhoto( atomEntry &entry ): atomEntry( entry ) {
   extractMediaEditURL();
 }
 
-picasaPhoto::picasaPhoto( gAPI *API, const string &fileName, const string &albumName, const string &Title, const string &Summary ): 
+picasaPhoto::picasaPhoto( gAPI *API, const string &fileName, const string &albumName, const string &Summary, const string &Title ) throw( enum atomObj::exceptionType ): 
 	atomEntry( API )
 {
   string url = picasaService::newPhotoURL( api->getUser(), albumName );
@@ -52,12 +53,24 @@ picasaPhoto::picasaPhoto( gAPI *API, const string &fileName, const string &album
       cerr << "picasaPhoto::picasaPhoto(...,"<<fileName<<"): Only jpeg's allowed at the moment.\n";
   }
   list<string> hdrs;
-  hdrs.push_back("Slug: "+Title );
-  loadFromXML(api->POST_FILE( url, fileName, "image/jpeg", hdrs ) );
-  addOrSet( xml->FirstChildElement(), "summary", Summary );
-  atomEntry::UPDATE();
+  string myTitle = Title;
+  if ( myTitle == "" ) {
+    boost::filesystem::path pth( fileName );
+    myTitle = pth.filename();
+  }
+  hdrs.push_back("Slug: "+myTitle );
+  if ( ! loadFromXML(api->POST_FILE( url, fileName, "image/jpeg", hdrs ) ) ) throw atomObj::ERROR_CREATING_OBJECT;
+  if ( Summary != "" ) {
+    addOrSet( xml->FirstChildElement(), "summary", Summary );
+    atomEntry::UPDATE();
+  }
 }
 
+bool picasaPhoto::upload( const std::string &fileName ) {
+  list<string> hdrs;
+  api->PUT_FILE( editURL, fileName, "image/jpeg", hdrs );
+  UPDATE();
+}
 
 string picasaPhoto::getSummary() const { 
   return xml->FirstChildElement()->FirstChildElement("summary")->GetText(false);

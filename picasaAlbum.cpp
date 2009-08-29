@@ -134,10 +134,6 @@ void picasaAlbum::setSummary( string summary ) {
 void picasaAlbum::setLocation( string location ) { 
    addOrSet( xml->FirstChildElement(), "gphoto:location", location );
 }
- 
-picasaPhoto *addPhoto( const std::string &fileName, const std::string &Title, const std::string &Summary) {
-}
-
 
 list<picasaPhoto *> picasaAlbum::getPhotos() { 
   atomFeed photoFeed( api );
@@ -157,8 +153,8 @@ list<picasaPhoto *> picasaAlbum::getPhotos() {
   return photos;
 }
 
-picasaPhoto *picasaAlbum::addPhoto( const std::string &fileName, const std::string &Title, const std::string &Summary ) { 
-  return new picasaPhoto( api, fileName, getShortTitle(), Title, Summary );
+picasaPhoto *picasaAlbum::addPhoto( const std::string &fileName, const std::string &Summary, const std::string &Title ) throw( enum atomObj::exceptionType ) {
+  return new picasaPhoto( api, fileName, getShortTitle(), Summary, Title );
 }
 
 

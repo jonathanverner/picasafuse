@@ -54,7 +54,7 @@ class atomObj {
 
 	public:
 
-		enum exceptionType { GENERAL_ERROR }; // Unrecoverable error conditions
+		enum exceptionType { GENERAL_ERROR, ERROR_CREATING_OBJECT }; // Unrecoverable error conditions
 
 	public:
 

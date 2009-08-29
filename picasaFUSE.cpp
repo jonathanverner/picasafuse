@@ -6,7 +6,7 @@
 
 struct myfs_config {
   char *cacheDir, *userName;
-  int updateInterval;
+  int updateInterval, maxPixels;
 };
 
 enum {
@@ -23,6 +23,7 @@ static struct fuse_opt myfs_opts[] = {
   MYFS_OPT("-t %i",             	updateInterval, 0),
   MYFS_OPT("cachedir=%s",       	cacheDir, 0),
   MYFS_OPT("username=%s",       	userName, 0),
+  MYFS_OPT("resize=%i",			maxPixels, 0 ),
 
   FUSE_OPT_KEY("-V",             KEY_VERSION),
   FUSE_OPT_KEY("--version",      KEY_VERSION),
@@ -50,6 +51,7 @@ static int myfs_opt_proc(void *data, const char *arg, int key, struct fuse_args 
 	       "    -o update-interval=NUM	update interval in seconds\n"
 	       "    -o cachedir=STRING		directory to store cached data\n"
 	       "    -o username=STRING		picasa username to authenticate as\n"
+	       "    -o resize=NUM		resize to at most NUM pixels when uploading pictures\n"
 	       "    -t NUM           		same as '-o update-interval=NUM'\n\n"
 	       , outargs->argv[0]);
 	fuse_opt_add_arg(outargs, "-ho");
@@ -80,7 +82,7 @@ int main (int argc, char **argv) {
   if ( conf.cacheDir != NULL ) cacheDir = conf.cacheDir;
   if ( userName != "" ) password = getpass( "Enter picasa password:" );
 
-  PicasaFS picasa( userName, password, cacheDir, conf.updateInterval );
+  PicasaFS picasa( userName, password, cacheDir, conf.updateInterval, conf.maxPixels );
 	
   // The first 3 parameters are identical to the fuse_main function.
   // The last parameter gives a pointer to a class instance, which is

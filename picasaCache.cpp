@@ -22,6 +22,8 @@
 #include "picasaCache.h"
 #include "fusexx.hpp"
 
+#include "convert.h"
+
 
 #include <boost/bind.hpp>
 #include <boost/filesystem/operations.hpp>
@@ -81,6 +83,8 @@ const struct cacheElement &cacheElement::operator=( const struct cacheElement &e
     xmlRepresentation = e.xmlRepresentation;
     cachedVersion = e.cachedVersion;
     picasaObj = e.picasaObj;
+    finalized = e.finalized;
+    numOfOpenWr = e.numOfOpenWr;
     switch (e.type) { 
 	    case cacheElement::DIRECTORY:
 		    authKey = e.authKey;
@@ -92,6 +96,29 @@ const struct cacheElement &cacheElement::operator=( const struct cacheElement &e
 		    return e;
     }
     return e;
+}
+
+ostream &operator<<(ostream &out, const cacheElement &e ) { 
+  out << "Name: " << e.name <<endl;
+  out << "Size: " << e.size << endl;
+  out << "Last Updated: " << e.last_updated << endl;
+  out << "Cached Version: " << e.cachedVersion << endl;
+  out << "Num of open fd: " << e.numOfOpenWr << endl;
+  switch( e.type ) { 
+    case cacheElement::DIRECTORY:
+      out << "Type: Directory " << endl;
+      out << "AuthKey: " << e.authKey << endl;
+      out << "Contents Size: " << e.contents.size() << endl;
+      break;
+    case cacheElement::FILE:
+      out << "Type: File " << endl;
+      out << "CachePath: " << e.cachePath << endl;
+      break;
+  }
+  out << " ---------- XML ------------ " << endl;
+  out << e.xmlRepresentation << endl;
+  out << " --------------------------- " << endl;
+  return out;
 }
 
 void cacheElement::buildPicasaObj(picasaService* picasa) {
@@ -136,6 +163,7 @@ void cacheElement::fromPhoto(picasaPhoto *photo) {
   // if ( picasaObj != photo ) delete picasaObj;
   picasaObj = photo;
   generated = false;
+  finalized = true;
 }
 
 void cacheMkdir( string cacheDir, const pathParser &p ) { 
@@ -151,10 +179,11 @@ void cacheMkdir( string cacheDir, const pathParser &p ) {
   }
 }
     
-picasaCache::picasaCache( const string& user, const string& pass, const string& ch, int UpdateInterval):
+picasaCache::picasaCache( const string& user, const string& pass, const string& ch, int UpdateInterval, long maxPixels ):
 	api( new gAPI( user, pass, "picasaFUSE" ) ),
 	picasa( new picasaService( user, pass ) ),
-	work_to_do(false), kill_thread(false), cacheDir( ch ), updateInterval(UpdateInterval)
+	work_to_do(false), kill_thread(false), cacheDir( ch ), updateInterval(UpdateInterval),
+	numOfPixels( maxPixels )
 {
   if ( updateInterval < 1 ) updateInterval = 600;
   mkdir( cacheDir.c_str(), 0755 );
@@ -172,23 +201,23 @@ picasaCache::picasaCache( const string& user, const string& pass, const string& 
     }
   }
   last_saved = time( NULL );
-    pathParser root(""), logs("/logs");
-    struct cacheElement e;
-    e.last_updated = time( NULL );
-    e.type = cacheElement::DIRECTORY;
-    e.name="";
-    e.contents.insert("logs");
-    e.size=sizeof(char)*1024;
-    e.world_readable=true;
-    e.writeable = false;
-    e.authKey = "";
-    putIntoCache( root, e );
-    e.type=cacheElement::FILE;
-    e.name="logs";
-    e.size=0;
-    e.generated=true;
-    putIntoCache( logs, e );
-    log( "----------CACHE LOADED FROM DISK\n" );
+  pathParser root(""), logs("/logs");
+  struct cacheElement e;
+  e.last_updated = time( NULL );
+  e.type = cacheElement::DIRECTORY;
+  e.name="";
+  e.contents.insert("logs");
+  e.size=sizeof(char)*1024;
+  e.world_readable=true;
+  e.writeable = false;
+  e.authKey = "";
+  putIntoCache( root, e );
+  e.type=cacheElement::FILE;
+  e.name="logs";
+  e.size=0;
+  e.generated=true;
+  putIntoCache( logs, e );
+  log( "----------CACHE LOADED FROM DISK\n" );
 }
 
 picasaCache::~picasaCache() {
@@ -228,6 +257,12 @@ void picasaCache::pleaseUpdate( const pathParser p ) {
   }
   boost::mutex::scoped_lock l(update_queue_mutex);
   update_queue.push_back(p);
+  work_to_do = true;
+}
+
+void picasaCache::localChange( const pathParser p ) { 
+  boost::mutex::scoped_lock l(local_change_queue_mutex);
+  local_change_queue.push_back(p);
   work_to_do = true;
 }
 
@@ -376,6 +411,71 @@ void picasaCache::updateAlbum( const pathParser A ) throw ( enum picasaCache::ex
   putIntoCache( A, c );
 }
 
+
+void picasaCache::pushImage( const pathParser P ) throw ( enum picasaCache::exceptionType ) { 
+  cacheElement c;
+  log( "picasaCache::pushImage(" + P.getFullName() + "):\n" );
+
+  if ( ! getFromCache( P, c ) ) {
+    log( "  ERROR: Object not present in cache, throwing ... \n" );
+    throw OBJECT_DOES_NOT_EXIST;
+  }
+  
+  if ( c.localChanges ) {
+    log( "picasaCache::pushImage("+P.getFullName()+"): local changes\n" );
+    if ( ! c.finalized ) {
+      log( "Photo not finalized yet ... \n");
+      return;
+    }
+    c.buildPicasaObj( picasa );
+    picasaPhoto *photo = dynamic_cast<picasaPhoto *>(c.picasaObj);
+    convert magic;
+    string summary = "";
+    if ( photo ) {
+      if ( numOfPixels > 0 ) {
+	magic.resize( numOfPixels, cacheDir + "/" + c.cachePath );
+      }
+      summary = magic.getComment( cacheDir + "/" + c.cachePath );
+      if ( ! photo->upload( cacheDir + "/" + c.cachePath ) ) {
+	log( "Failed uploading ...\n" );
+	throw OPERATION_FAILED;
+      }
+      c.localChanges = false;
+      log( "Photo uploaded...\n" );
+      if ( photo->getSummary() != summary && summary != "") { 
+	photo->setSummary(summary);
+	if ( ! photo->UPDATE() ) c.localChanges = true;
+	log( "Photo updated...\n" );
+      }
+    } else {
+      cacheElement a;
+      getFromCache( P.chop(), a );
+      a.buildPicasaObj( picasa );
+      picasaAlbum *album = dynamic_cast<picasaAlbum *>( a.picasaObj );
+      if ( ! album ) {
+	log( "Parent not an album !!! WTF???\n" );
+	throw OPERATION_FAILED;
+      }
+      if ( numOfPixels > 0 ) {
+	magic.resize( numOfPixels, cacheDir + "/" + c.cachePath );
+      }
+      summary = magic.getComment( cacheDir + "/" + c.cachePath );
+      try {
+	photo = album->addPhoto( cacheDir + "/" + c.cachePath, summary );
+	log( "Photo uploaded...\n" );
+	c.fromPhoto( photo );
+	c.last_updated = time( NULL );
+	pleaseUpdate( P.chop() );
+      } catch ( atomObj::exceptionType &ex ) { 
+	log( "Failed posting new photo...\n" );
+	throw OPERATION_FAILED;
+      }
+    }
+    putIntoCache( P, c );
+    return;
+  }
+}
+
 /*
  * Assumes P is already in the cache, otherwise throws
  */
@@ -383,17 +483,28 @@ void picasaCache::updateImage( const pathParser P ) throw ( enum picasaCache::ex
   cacheElement c;
 
   log( "picasaCache::updateImage("+P.getFullName()+"):\n" );
-
+  
   if ( ! getFromCache( P, c ) ) {
     log( "  ERROR: Object not present in cache, throwing ... \n" );
     throw OBJECT_DOES_NOT_EXIST;
   }
   
-  if ( c.localChanges ) return;
-  
+  if ( c.localChanges ) {
+    localChange( P );
+    return;
+  }
+
+  log( " No local changes...\n" );
   c.buildPicasaObj(picasa);
   picasaPhoto *photo = dynamic_cast<picasaPhoto *>(c.picasaObj);
-  if ( ! photo ) throw UNEXPECTED_ERROR;
+  if ( ! photo ) {
+    stringstream ss;
+    ss << c;
+    log("Could not reconstruct photo !!!\n");
+    log( ss.str() );
+    cerr << ss.str();
+    throw UNEXPECTED_ERROR;
+  }
   
   if ( ! photo->PULL_CHANGES() ) {
     log( " ERROR: Error updating photo info, throwing ... \n" );
@@ -404,7 +515,7 @@ void picasaCache::updateImage( const pathParser P ) throw ( enum picasaCache::ex
     removeFromCache( P );
     throw OBJECT_DOES_NOT_EXIST;
   }
-  
+
   if ( c.cachedVersion != photo->getVersion() ) {
     log( " Downloading " + photo->getPhotoURL() + " to " + c.cachePath + "\n" );
     photo->download(cacheDir+"/"+c.cachePath); // FIXME: make atomic.
@@ -515,6 +626,13 @@ void picasaCache::updateUser ( const pathParser U ) throw ( enum picasaCache::ex
   }
 }
 
+void picasaCache::pushChange( const pathParser p ) throw ( enum picasaCache::exceptionType ) { 
+  struct cacheElement c;
+  if ( ! getFromCache( p, c ) ) throw OBJECT_DOES_NOT_EXIST;
+  if ( ! c.localChanges ) return;
+  if ( p.getType() == pathParser::IMAGE ) pushImage( p );
+  else doUpdate( p );
+}
 
 void picasaCache::doUpdate( const pathParser p ) throw ( enum picasaCache::exceptionType ) {
   struct cacheElement c;
@@ -573,30 +691,73 @@ void picasaCache::doUpdate( const pathParser p ) throw ( enum picasaCache::excep
 }
 
 void picasaCache::update_worker() { 
-  boost::mutex::scoped_lock l(update_queue_mutex);
-  l.unlock();
+  boost::mutex::scoped_lock l(update_queue_mutex), lc(local_change_queue_mutex);
+  l.unlock(); lc.unlock();
   pathParser p;
   time_t now;
+  bool wtodo=true;
   while( ! kill_thread ) { 
     if ( work_to_do ) { 
       l.lock();
-      p = update_queue.front();
-      update_queue.pop_front();
-      if ( update_queue.size() == 0 ) work_to_do = false;
+      if ( update_queue.size() > 0 ) { 
+	p = update_queue.front();
+	update_queue.pop_front();
+	l.unlock();
+	try {
+	  //log( "update_worker: Processing scheduled job (" + p.getFullName() + ")\n" );
+	  doUpdate( p );
+	} catch (enum picasaCache::exceptionType ex ) {
+	  log( "update_worker: Exception ("+exceptionString( ex ) + ") caught while doing update of "+p.getFullName() + "\n");
+	}
+      } else l.unlock();
+      lc.lock();
+      if ( local_change_queue.size() > 0 ) { 
+	p = local_change_queue.front();
+	local_change_queue.pop_front();
+	lc.unlock();
+	try {
+	  pushChange( p );
+	} catch ( enum picasaCache::exceptionType ex ) { 
+	  log( "update_worker: Exception ("+exceptionString( ex ) + ") caught while doing update of "+p.getFullName() + "\n");
+	  switch( ex ) { 
+	    case OPERATION_FAILED:
+	      localChange( p );
+	  }
+	}
+      } else lc.unlock();
+      l.lock();
+        wtodo = ( update_queue.size() > 0 );
       l.unlock();
-      try {
-	//log( "update_worker: Processing scheduled job (" + p.getFullName() + ")\n" );
-	doUpdate( p );
-      } catch (enum picasaCache::exceptionType ex ) {
-	log( "update_worker: Exception ("+exceptionString( ex ) + ") caught while doing update of "+p.getFullName() + "\n");
-      }
+      lc.lock();
+        work_to_do = ( wtodo || local_change_queue.size() > 0 );
+      lc.unlock();
     }
     now = time( NULL );
     if ( now - last_saved > 180 ) saveCacheToDisk();
   }
 }
 
-
+void picasaCache::sync() {
+  list<pathParser> failed_list;
+  boost::mutex::scoped_lock lc(local_change_queue_mutex);
+  pathParser p;
+  while( local_change_queue.size() > 0 ) { 
+    p = local_change_queue.front();
+    local_change_queue.pop_front();
+    try {
+      pushChange( p );
+    } catch ( enum picasaCache::exceptionType ex ) { 
+      log( "fsync: Exception ("+exceptionString( ex ) + ") caught while doing update of "+p.getFullName() + "\n");
+      switch( ex ) { 
+	case OPERATION_FAILED:
+	  failed_list.push_back( p );
+      }
+    }
+  }
+  local_change_queue = failed_list;
+}
+      
+    
 
 bool picasaCache::getFromCache( const pathParser &p, struct cacheElement &e ) { 
   return getFromCache( p.getHash(), e );
@@ -659,7 +820,6 @@ void picasaCache::removeFromCache( const pathParser &p ) {
       boost::filesystem::remove_all( cacheDir + "/" + p.getFullName() );
   }
 }
-  
 
 
 bool picasaCache::getFromCache( const string &key, struct cacheElement &e ) {
@@ -706,6 +866,11 @@ string picasaCache::getXAttr( const pathParser &p, const string &attrName ) thro
   log( "picasaCache::getXAttr( " + p.getFullName() + ", " + attrName + " )\n" );
   cerr << " picasaCache::getXAttr( " + p.getFullName() + ", " + attrName + " )\n";
   if ( ! getFromCache( p, c ) ) throw OBJECT_DOES_NOT_EXIST;
+  if ( attrName == "CacheElement" ) {
+    stringstream ss;
+    ss << c;
+    return ss.str();
+  }
   c.buildPicasaObj( picasa );
   if ( ! c.picasaObj ) throw UNEXPECTED_ERROR;
   if ( attrName == "AuthKey" && p.getType() == pathParser::ALBUM ) {
@@ -729,6 +894,7 @@ list<string> picasaCache::listXAttr( const pathParser &p ) throw (enum exception
   try {
     ret = c.picasaObj->listAttr();
     ret.push_back( "AuthKey" );
+    ret.push_back( "CacheElement" );
   } catch ( atomObj::exceptionType ) {
     throw OBJECT_DOES_NOT_EXIST;
   }
@@ -788,23 +954,118 @@ void picasaCache::needPath( const pathParser &path ) {
   pleaseUpdate( path );
 }
 
-void picasaCache::rmdir( const pathParser &p ) throw ( enum picasaCache::exceptionType ) {
-  if ( p.isUser() ) { 
-    if ( p.getUser() == "logs" ) throw ACCESS_DENIED;
-    removeFromCache( p );
+void picasaCache::unlink( const pathParser &p ) throw ( enum picasaCache::exceptionType ) {
+  if ( p.getUser() == "logs" )  {
+    cacheElement c;
+    getFromCache( p, c );
+    c.cachePath="";
+    c.size=c.cachePath.size();
+    putIntoCache( p, c );
+    log( "Clear log file.\n" );
     return;
-  } else throw UNIMPLEMENTED;
+  }
+  if ( p.getType() != pathParser::IMAGE ) throw OPERATION_NOT_SUPPORTED;
+  if ( p.getUser() != picasa->getUser() ) throw ACCESS_DENIED;
+  cacheElement c;
+  if ( ! getFromCache( p, c ) ) throw OBJECT_DOES_NOT_EXIST;
+  c.buildPicasaObj( picasa );
+  picasaPhoto *photo = dynamic_cast<picasaPhoto *>( c.picasaObj );
+  if ( ! photo ) {
+    if ( ! c.localChanges ) throw OPERATION_FAILED;
+  } else photo->DELETE();
+  removeFromCache( p );
+  getFromCache( p.chop(), c );
+  c.contents.erase( p.getImage() );
+  putIntoCache( p.chop(), c );
+  pleaseUpdate( p.chop() );
 }
 
+void picasaCache::rmdir( const pathParser &p ) throw ( enum picasaCache::exceptionType ) {
+  if ( p.isUser() ) { 
+    if ( p.getUser() == "logs" ) throw OPERATION_NOT_SUPPORTED;
+    removeFromCache( p );
+    return;
+  } 
+  if ( p.getUser() != picasa->getUser() ) throw ACCESS_DENIED;
+  if ( p.isAlbum() ) { 
+    cacheElement c;
+    if ( ! getFromCache( p, c ) ) throw OBJECT_DOES_NOT_EXIST;
+    if ( c.contents.size() > 0 ) throw OPERATION_FAILED;
+    c.buildPicasaObj( picasa );
+    picasaAlbum *album = dynamic_cast<picasaAlbum *>( c.picasaObj );
+    if ( ! album ) {
+      if ( ! c.localChanges ) throw OPERATION_FAILED;
+    } else album->DELETE();
+    removeFromCache( p );
+    getFromCache( p.chop(), c );
+    c.contents.erase( p.getImage() );
+    putIntoCache( p.chop(), c );
+    pleaseUpdate( p.chop() );
+    return;
+  }
+  throw OPERATION_NOT_SUPPORTED;
+}
+
+void picasaCache::create( const pathParser &p ) throw ( enum picasaCache::exceptionType ) { 
+  cacheElement c;
+  if ( p.getType() != pathParser::IMAGE ) {
+    if ( p.getUser() == "sync" ) picasaCache::sync();
+    throw UNIMPLEMENTED;
+  }
+  if ( p.getUser() != picasa->getUser() ) throw ACCESS_DENIED;
+  if ( ! getFromCache( p.chop(), c ) || ! getFromCache( p.chop().chop(), c ) || getFromCache( p, c ) ) throw OPERATION_FAILED;
+  log( "create("+p.getFullName()+"...): creating file.\n" );
+  c.type=cacheElement::FILE;
+  c.picasaObj=NULL;
+  c.localChanges=true;
+  c.finalized=false;
+  c.generated = false;
+  c.name=p.getImage();
+  c.size=0;
+  c.last_updated=0;
+  c.cachePath = p.getFullName();
+  string absPath = cacheDir + "/" + c.cachePath;
+  int fd = open( absPath.c_str(), O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH );
+  if ( fd == -1 ) {
+    log( "create(" + p.getFullName()+"...): operation failed.\n" );
+    throw OPERATION_FAILED;
+  }
+  close(fd);
+  putIntoCache( p, c );
+  getFromCache( p.chop(), c );
+  c.contents.insert( p.getImage() );
+  putIntoCache( p.chop(), c );
+}
+
+void picasaCache::my_open( const pathParser &p, int flags ) throw ( enum picasaCache::exceptionType ) {
+  bool rdonly = (( flags & 3 ) == O_RDONLY );
+  cacheElement c;
+  if ( ! getFromCache( p, c) ) throw OBJECT_DOES_NOT_EXIST;
+  c.numOfOpenWr++;
+  putIntoCache( p, c);
+  if ( rdonly ) return;
+  switch( p.getType() ) { 
+    case pathParser::IMAGE:
+      if ( p.getUser() == picasa->getUser() ) {
+	log( "my_open("+p.getFullName()+"...): opening for writing.\n" );
+	return;
+      }
+    default:
+      throw ACCESS_DENIED;
+  }
+}
+      
+      
+      
 void picasaCache::my_mkdir( const pathParser &p ) throw ( enum picasaCache::exceptionType ) {
   switch( p.getType() ) { 
     case pathParser::USER:
       throw UNIMPLEMENTED;
+    case pathParser::IMAGE:
+      throw OPERATION_NOT_SUPPORTED;
     case pathParser::ALBUM:
       if ( p.getUser() != picasa->getUser() ) throw ACCESS_DENIED;
       newAlbum( p );
-    case pathParser::IMAGE:
-      throw OPERATION_NOT_SUPPORTED;
   }
 }
 
@@ -864,4 +1125,48 @@ int picasaCache::read( const pathParser &path, char *buf, size_t size, off_t off
   return fillBufFromString( "Data not yet available...", buf, size, offset );
 }
 
+int picasaCache::my_write( const pathParser &path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi ) {
+  struct cacheElement e;
+  if ( getFromCache( path, e ) ) {
+    if ( e.generated ) return -EPERM;
+    string absPath = cacheDir + "/" + e.cachePath;
+    int fd = open( absPath.c_str(), O_WRONLY );
+    if ( fd == -1 ) { 
+      string errBuf( strerror( errno ) );
+      log( "write("+path.getFullName() +"): open("+absPath+") failed with error:"+errBuf+"\n" );
+      return -ENOENT;
+    }
+    e.localChanges = true;
+    e.finalized = false;
+    putIntoCache( path, e );
+    int ret = pwrite( fd, buf, size, offset );
+    close( fd );
+    return ret;
+  } else return -ENOENT;
+}
+
+void picasaCache::my_close( const pathParser &path ) { 
+  cacheElement e;
+  stringstream ss;
+  if ( getFromCache( path, e ) ) {
+    ss << " Closing file " << path.getFullName() << " which was opened " << e.numOfOpenWr << " times" << endl;
+    log( ss.str() );
+    e.numOfOpenWr--;
+    if ( e.numOfOpenWr <= 0  && e.localChanges ) { 
+      e.numOfOpenWr=0;
+      if ( numOfPixels > 0 ) {
+	convert magic;
+	magic.resize( numOfPixels, cacheDir + "/" + e.cachePath );
+      }
+      e.finalized = true;
+      e.last_updated=0;
+      putIntoCache( path, e );
+      localChange( path );
+    }
+    putIntoCache(path, e);
+  } else {
+    log( "Closing non-existant file " + path.getFullName() + " ... WTF ???\n" );
+    throw OBJECT_DOES_NOT_EXIST;
+  }
+}
 

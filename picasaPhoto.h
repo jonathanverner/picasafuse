@@ -31,7 +31,7 @@ class picasaPhoto: public atomEntry {
 	protected:
 		picasaPhoto( gAPI* api, const std::string& xml = "" );
 		picasaPhoto( atomEntry &entry );
-		picasaPhoto( gAPI *api, const std::string &fileName, const std::string &albumName, const std::string &Title="", const std::string &Summary="" );
+		picasaPhoto( gAPI *api, const std::string &fileName, const std::string &albumName, const std::string &Summary="", const std::string &Title="" ) throw( enum atomObj::exceptionType );
 
 	public:
 	  
@@ -45,13 +45,11 @@ class picasaPhoto: public atomEntry {
 		std::string getUser() const;
 		size_t getSize() const;
 		void download( const std::string &fileName );
+		bool upload( const std::string &fileName );
 
 		void setSummary( std::string summary );
 		void addComment( std::string comment );
 	
-
-		void UPDATE( const std::string &fileName );
-
 
 		std::list<std::string> getComments();
 
