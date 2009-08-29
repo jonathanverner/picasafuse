@@ -79,6 +79,7 @@ bool curlRequest::perform() {
     cerr << "getFeed() Error: INVALID CURL HANDLE\n";
     return false;
   }
+  curl_easy_reset( curl );
   FILE *outfl = NULL, *infl=NULL;
 
   struct curl_slist *curlHDRS = NULL;
@@ -133,6 +134,9 @@ bool curlRequest::perform() {
 		  }
 		  break;
 	  case PUT:
+		  method = "PUT";
+		  //curl_easy_setopt( curl, CURLOPT_PUT, 1 );
+		  curl_easy_setopt( curl, CURLOPT_CUSTOMREQUEST, method.c_str() );
 		  curl_easy_setopt( curl, CURLOPT_READFUNCTION, requestData );
 		  curl_easy_setopt( curl, CURLOPT_READDATA, &bodyData );
 		  curl_easy_setopt( curl, CURLOPT_UPLOAD, 1 );
