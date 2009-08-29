@@ -40,11 +40,11 @@ static size_t requestData(void *ptr, size_t size, size_t nmemb, void *Data ) {
   size_t availableData = data->size-data->pos, bufSize = size*nmemb, copySize;
   if ( availableData > bufSize ) copySize = bufSize;
   else copySize = availableData;
-  cerr<<"requestData(...,"<<size<<","<<nmemb<<",...)\n";
+/*  cerr<<"requestData(...,"<<size<<","<<nmemb<<",...)\n";
   cerr<<"  availableData:"<<availableData<<"\n";
   cerr<<"  copySize:"<<copySize<<"\n";
   cerr<<"  pos:"<<data->pos<<"\n";
-  cerr<<"  totalDataSize:"<<data->size<<"\n";
+  cerr<<"  totalDataSize:"<<data->size<<"\n"; */
   data->data.copy( (char *) ptr, copySize, data->pos );
   data->pos+=copySize;
   return copySize;
@@ -73,6 +73,7 @@ void *curlRequest::getThreadCurlHandle() {
 }
 
 bool curlRequest::perform() {
+  cerr<<"Performing request for " << URL << endl;
   void *curl = getThreadCurlHandle();
   if ( ! getThreadCurlHandle() ) { 
     cerr << "getFeed() Error: INVALID CURL HANDLE\n";
@@ -148,6 +149,7 @@ bool curlRequest::perform() {
 		  return false;
   }
   CURLcode cd = curl_easy_perform(curl);
+  cerr<<"DONE Performing request for " << URL <<endl;
   if ( cd ) {
       if ( outfl ) fclose( outfl );
       if ( infl ) fclose( infl );

@@ -122,7 +122,11 @@ string gAPI::GET( const string &URL ) {
   request.setURL( URL );
   request.perform();
   if ( request.getStatus() != 200 ) {
-    cerr << "gAPI::GET: "<<request.getResponse() << "(response status "<<request.getStatus() << ")\n";
+    cerr << "gAPI::GET: ERROR"<<endl;
+    cerr << "   Response status: "<<request.getStatus() << endl;
+    cerr << "   Offending URL: " << URL << endl;
+    cerr << "   Response---------------------" <<endl;
+    cerr << request.getResponse()<<endl;
     return "";
   }
   return request.getResponse();
@@ -146,7 +150,14 @@ string gAPI::PUT( const string &URL, const string &data ) {
   request.setBody( data, "application/atom+xml" );
   request.perform();
   if ( request.getStatus() != 200 && request.getStatus() != 201 ) { 
-    cerr << "gAPI::PUT: "<<request.getResponse() << "(response status "<<request.getStatus() << ")\n";
+    cerr << "gAPI::PUT: ERROR"<<endl;
+    cerr << "   Response status: "<<request.getStatus() << endl;
+    cerr << "   Offending URL: " << URL << endl;
+    cerr << "   Response---------------------" <<endl;
+    cerr << request.getResponse()<<endl;
+    cerr << "   Request Body-----------------" <<endl;
+    cerr << data <<endl;
+    cerr << "--------------------------------" <<endl;
     return "";
   }
   return request.getResponse();

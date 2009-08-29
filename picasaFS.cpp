@@ -33,11 +33,13 @@ void PicasaFS::destroy( void * ) {
 
 int PicasaFS::getattr (const char *path, struct stat *stbuf) {
   pathParser p(path);
+  cerr << "getattr("<<p.getFullName()<<"): start"<<endl;
   // Zero out the file stat buffer
   memset( stbuf, 0, sizeof (struct stat) );
   int ret = self->cache->getAttr( p, stbuf );
   stbuf->st_gid = self->GID;
   stbuf->st_uid = self->UID;
+  cerr << "getattr("<<p.getFullName()<<"): success ("<<ret<<")"<<endl;
   return ret;
 }
 
@@ -107,10 +109,12 @@ int PicasaFS::readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 int PicasaFS::fuse_open(const char *path, struct fuse_file_info *fi) {
   pathParser p(path);
   if ( ! self->cache->exists( p ) ) return -ENOENT;
+  cerr << "fuse_open("<<p.getFullName()<<"): start"<<endl;
   self->cache->needPath( p );
   // Only allow read-only access
   if((fi->flags & 3) != O_RDONLY)
     return -EACCES;
+  cerr << "fuse_open("<<p.getFullName()<<"): success"<<endl;
   return 0;
 }
 
@@ -119,8 +123,11 @@ int PicasaFS::read(const char *path, char *buf, size_t size, off_t offset,
         size_t len;
         (void) fi;
 	pathParser p(path);
+	cerr << "read("<<p.getFullName()<<"): start"<<endl;
 	if ( ! self->cache->exists( p ) ) return -ENOENT;
-	return self->cache->read( p, buf, size, offset, fi );
+	int ret = self->cache->read( p, buf, size, offset, fi );
+	cerr << "read("<<p.getFullName()<<"): success ("<< ret <<")"<<endl;
+	return ret;
 }
 
 int PicasaFS::rmdir( const char *path ) { 
@@ -144,6 +151,7 @@ int PicasaFS::mkdir( const char *path, mode_t mode ) {
   pathParser p(path);
   try {
     self->cache->my_mkdir( p );
+    cerr << "mkdir( " << p.getFullName() << " ): success ! " << endl;
   } catch( enum picasaCache::exceptionType ex ) { 
     switch( ex ) { 
       case picasaCache::ACCESS_DENIED:

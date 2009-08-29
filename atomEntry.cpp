@@ -61,7 +61,7 @@ void atomEntry::setTitle(std::string Title) {
 }
 
 bool atomEntry::UPDATE() {
-  std::cerr<< "atomEntry::UPDATE() -> target url: " << editURL << "\n";
+  std::cerr<< "atomEntry::UPDATE() -> target url: " << editURL << endl;
   if ( ! xml ) return false;
   if ( newly_created ) return loadFromXML( api->POST( editURL, getStringXML() ) );
   return loadFromXML( api->PUT( editURL, getStringXML() ) );

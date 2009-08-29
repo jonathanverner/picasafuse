@@ -110,7 +110,7 @@ struct cacheElement {
 class picasaCache { 
 	public:
 		enum exceptionType { OBJECT_DOES_NOT_EXIST, UNIMPLEMENTED, ACCESS_DENIED, OPERATION_NOT_SUPPORTED, UNEXPECTED_ERROR, OPERATION_FAILED };
-	        std::string exceptionString( exceptionType );
+	        static std::string exceptionString( exceptionType );
 
 
 
