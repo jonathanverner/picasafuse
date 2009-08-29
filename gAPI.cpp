@@ -134,6 +134,7 @@ string gAPI::GET( const string &URL ) {
 string gAPI::DELETE( const string &URL ) { 
   curlRequest request;
   if ( haveToken() )  request.addHeader( "Authorization: GoogleLogin auth="+authToken );
+  request.addHeader("If-Match: *");
   request.setType( curlRequest::DELETE );
   request.setURL( URL );
   request.perform();
@@ -144,6 +145,7 @@ string gAPI::DELETE( const string &URL ) {
 string gAPI::PUT( const string &URL, const string &data ) { 
   curlRequest request;
   if ( haveToken() )  request.addHeader( "Authorization: GoogleLogin auth="+authToken );
+  request.addHeader("If-Match: *");
   request.setType( curlRequest::PUT );
   request.setURL( URL );
   request.setBody( data, "application/atom+xml" );
