@@ -52,8 +52,8 @@ class gAPI {
 		std::string DELETE( const std::string &feedURL );
 		std::string PUT( const std::string &feedURL, const std::string &data );
 		std::string POST( const std::string &feedURL, const std::string &data );
-		std::string POST_FILE( const std::string &feedURL, const std::string &fileName, const std::string &contentType, std::list< std::string > &headers );
-
+		std::string POST_FILE( const std::string &feedURL, const std::string &fileName, const std::string &contentType, std::list< std::string > &headers, bool methodPOST=true );
+		std::string PUT_FILE( const std::string &feedURL, const std::string &fileName, const std::string &contentType, std::list< std::string > &headers );
 	public:
 		enum exceptionType { GENERAL_ERROR };
 

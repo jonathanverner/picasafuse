@@ -178,10 +178,14 @@ string gAPI::POST( const string &URL, const string &data ) {
   return request.getResponse();
 }
 
-string gAPI::POST_FILE( const string &URL, const string &file, const string &contentType, list<string> &headers ) { 
+string gAPI::POST_FILE( const string &URL, const string &file, const string &contentType, list<string> &headers, bool methodPOST ) { 
  curlRequest request;
   if ( haveToken() )  request.addHeader( "Authorization: GoogleLogin auth="+authToken );
-  request.setType( curlRequest::POST );
+  if ( methodPOST ) request.setType( curlRequest::POST );
+  else {
+    request.addHeader("If-Match: *");
+    request.setType( curlRequest::PUT );
+  }
   request.setURL( URL );
   request.setInFile( file, contentType );
   for( list<string>::iterator hdr = headers.begin(); hdr != headers.end(); hdr++ )
@@ -193,6 +197,10 @@ string gAPI::POST_FILE( const string &URL, const string &file, const string &con
     return "";
   }
   return request.getResponse();
+}
+
+string gAPI::PUT_FILE( const string &feedURL, const string &fileName, const string &contentType, list< string > &headers ) {
+  return POST_FILE( feedURL, fileName, contentType, headers, false );
 }
 
 
