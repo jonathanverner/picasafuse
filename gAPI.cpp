@@ -115,13 +115,12 @@ bool gAPI::DOWNLOAD( const std::string &URL, const std::string &fileName ) {
 
 
 string gAPI::GET( const string &URL ) { 
-
   curlRequest request;
   if ( haveToken() )  request.addHeader( "Authorization: GoogleLogin auth="+authToken );
   request.setType( curlRequest::GET );
   request.setURL( URL );
   request.perform();
-  if ( request.getStatus() != 200 ) {
+  if ( request.getStatus() != OK && request.getStatus() != CREATED && request.getStatus() != NOT_MODIFIED ) {
     cerr << "gAPI::GET: ERROR"<<endl;
     cerr << "   Response status: "<<request.getStatus() << endl;
     cerr << "   Offending URL: " << URL << endl;
@@ -149,7 +148,7 @@ string gAPI::PUT( const string &URL, const string &data ) {
   request.setURL( URL );
   request.setBody( data, "application/atom+xml" );
   request.perform();
-  if ( request.getStatus() != 200 && request.getStatus() != 201 ) { 
+  if ( request.getStatus() != OK && request.getStatus() != CREATED && request.getStatus() != NOT_MODIFIED ) { 
     cerr << "gAPI::PUT: ERROR"<<endl;
     cerr << "   Response status: "<<request.getStatus() << endl;
     cerr << "   Offending URL: " << URL << endl;
