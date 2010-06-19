@@ -180,7 +180,10 @@ void cacheMkdir( string cacheDir, const pathParser &p ) {
     mkdir( path.c_str(), 0755 );
   }
 }
-    
+
+const pathParser picasaCache::controlDirPath(".control");
+const pathParser picasaCache::logPath(".control/log");
+
 picasaCache::picasaCache( const string& user, const string& pass, const string& ch, int UpdateInterval, long maxPixels ):
 	api( new gAPI( user, pass, "picasaFUSE" ) ),
 	picasa( new picasaService( user, pass ) ),
@@ -189,37 +192,94 @@ picasaCache::picasaCache( const string& user, const string& pass, const string& 
 {
   if ( updateInterval < 1 ) updateInterval = 600;
   mkdir( cacheDir.c_str(), 0755 );
-  string cacheFName = cacheDir + "/.cache";
+  string cacheFName = cacheDir + "/.cache", err;
   if ( boost::filesystem::exists( cacheFName ) ) { 
     try {
       std::ifstream ifs(cacheFName.c_str(), ios::binary );
       boost::archive::text_iarchive ia(ifs);
-      boost::mutex::scoped_lock l(cache_mutex);
       ia >> cache;
+      insertControlDir();
       return;
     } catch ( boost::archive::archive_exception ex ) { 
       std::cerr << ex.what() << "\n";
+      err = ex.what();
       cache.clear();
     }
   }
-  last_saved = time( NULL );
-  pathParser root(""), logs("/logs");
+  createRootDir();
+  insertControlDir();
+  if ( err != "" ) log( "Error reading cache from disk ("+err+")" );
+  log( "----------NEW CACHE CREATED\n" );
+}
+
+string picasaCache::toString() { 
+  std::stringstream ss;
+  boost::archive::text_oarchive oa( ss );
+  boost::mutex::scoped_lock l(cache_mutex);
+  oa << cache;
+  return ss.str();
+}
+
+void picasaCache::createRootDir() { 
+  pathParser root("");
+  if ( isCached( root ) ) return;
   struct cacheElement e;
   e.last_updated = time( NULL );
   e.type = cacheElement::DIRECTORY;
   e.name="";
-  e.contents.insert("logs");
   e.size=sizeof(char)*1024;
   e.world_readable=true;
   e.writeable = false;
   e.authKey = "";
   putIntoCache( root, e );
-  e.type=cacheElement::FILE;
-  e.name="logs";
+}
+
+bool picasaCache::insertDir( const pathParser &p, const string &authKey, bool writeable ) {
+  boost::mutex::scoped_lock l(cache_mutex);
+  string parentKey = p.chop().getHash();
+  if ( cache.find( parentKey ) == cache.end() ) return false; // Parent does not exist.
+  cache[parentKey].contents.insert( p.getLastComponent() );
+  struct cacheElement e;
+  e.last_updated = time( NULL );
+  e.type = cacheElement::DIRECTORY;
+  e.name=p.getLastComponent();
+  e.size=sizeof(char)*1024;
+  e.authKey = authKey;
+  e.world_readable = ( authKey == "" );
+  e.writeable = writeable;
+  cache[p.getHash()] = e;
+  return true;
+}
+
+bool picasaCache::insertSpecialFile( const pathParser &p, bool world_readable, bool world_writeable ) {
+  boost::mutex::scoped_lock l(cache_mutex);
+  string parentKey = p.chop().getHash();
+  if ( cache.find( parentKey ) == cache.end() ) return false; // Parent does not exist.
+  cache[parentKey].contents.insert( p.getLastComponent() );
+  struct cacheElement e;
+  e.last_updated = time( NULL );
+  e.type = cacheElement::FILE;
+  e.name=p.getLastComponent();
   e.size=0;
   e.generated=true;
-  putIntoCache( logs, e );
-  log( "----------CACHE LOADED FROM DISK\n" );
+  e.world_readable = world_readable;
+  e.writeable = world_writeable;
+  cache[p.getHash()] = e;
+  return true;
+}
+
+void picasaCache::insertControlDir() {
+  if ( ! isCached( controlDirPath ) ) insertDir( controlDirPath );
+  if ( ! isCached( logPath ) ) insertSpecialFile( logPath );
+}
+
+bool picasaCache::isSpecial( const pathParser &p ) { 
+  if ( p == controlDirPath ) return true;
+  if ( p == logPath ) return true;
+  struct cacheElement e;
+  if ( getFromCache( p, e ) && e.generated ) return true;
+  if ( p.getUser() == "logs" ) return true;
+  return false;
 }
 
 picasaCache::~picasaCache() {
@@ -244,12 +304,11 @@ void picasaCache::log( string msg ) {
   time_t now = time( NULL );
   stringstream os;
   os << now << ": " << msg;
-  pathParser p("/logs");
   struct cacheElement c;
-  getFromCache( p, c );
+  getFromCache( logPath, c );
   c.cachePath+=os.str();
   c.size = c.cachePath.size();
-  putIntoCache( p, c );
+  putIntoCache( logPath, c );
 }
 
 void picasaCache::pleaseUpdate( const pathParser p ) { 
@@ -284,7 +343,7 @@ void picasaCache::newAlbum( const pathParser A ) throw ( enum picasaCache::excep
   getFromCache( A.chop(), c );
   c.contents.insert( album.getTitle() );
   putIntoCache( A.chop(), c );
-  pleaseUpdate( A );
+  doUpdate( A );
 }
 
 void picasaCache::pushAlbum( const pathParser A ) throw ( enum picasaCache::exceptionType ) {
@@ -642,7 +701,7 @@ void picasaCache::doUpdate( const pathParser p ) throw ( enum picasaCache::excep
   time_t now = time( NULL );
   if ( ! p.isValid() ) return;
   if ( ! p.haveUser() ) return;
-  if ( p.getUser() == "logs" ) return;
+  if ( isSpecial(p) ) return;
   
   /* Object is already present in the cache */
   if ( getFromCache( p, c ) ) {
@@ -758,19 +817,26 @@ void picasaCache::sync() {
   }
   local_change_queue = failed_list;
 }
-      
-    
 
-bool picasaCache::getFromCache( const pathParser &p, struct cacheElement &e ) { 
-  return getFromCache( p.getHash(), e );
+bool picasaCache::getFromCache( const pathParser &p, struct cacheElement &e ) {
+  if ( ! p.isValid() ) return false;
+  boost::mutex::scoped_lock l(cache_mutex);
+  string key = p.getHash();
+  if ( cache.find( key ) == cache.end() ) {
+    return false;
+  }
+  e = cache[key];
+  return true;
 }
 
 void picasaCache::putIntoCache( const pathParser &p, const struct cacheElement &e ) {
-  cacheMkdir( cacheDir, p );
-  putIntoCache( p.getHash(), e );
+  if ( ! isSpecial( p ) ) cacheMkdir( cacheDir, p );
+  boost::mutex::scoped_lock l(cache_mutex);
+  cache[p.getHash()] = e;
 }
 
 bool picasaCache::isCached( const pathParser &p ) {
+  if ( ! p.isValid() ) return false;
   return isCached( p.getHash() );
 }
 
@@ -779,7 +845,7 @@ void picasaCache::clearCache() {
   cache.clear();
 }
 
-list<pathParser> picasaCache::getChildrenInCache( const pathParser &p ) {
+/*list<pathParser> picasaCache::getChildrenInCache( const pathParser &p ) {
   list<pathParser> ret;
   struct cacheElement c = cache[ p.getHash() ];
   pathParser child;
@@ -792,20 +858,54 @@ list<pathParser> picasaCache::getChildrenInCache( const pathParser &p ) {
     }
   }
   return ret;
+}*/
+
+void picasaCache::no_lock_removeFromCache( const pathParser &p ) { 
+  if ( p.isRoot() ) return;
+  string key = p.getHash();
+  if ( cache.find( key ) == cache.end() ) return;
+  struct cacheElement c = cache[key];
+  switch( c.type ) { 
+    case cacheElement::FILE:
+      if ( c.generated != true ) {
+	try {
+	  boost::filesystem::remove( cacheDir+"/"+c.cachePath );
+	} catch (...) {}
+      }
+      break;
+    case cacheElement::DIRECTORY:
+      for( set<string>::iterator child = c.contents.begin(); child != c.contents.end(); ++child ) no_lock_removeFromCache( p+*child );
+      try {
+	boost::filesystem::remove( cacheDir+"/"+c.cachePath );
+      } catch (...) {}
+      break;
+  }
+  update_queue.remove( p );
+  cache.erase( key );
 }
-  
+
+void picasaCache::removeFromCache( const pathParser &p ) { 
+  boost::mutex::scoped_lock cl(cache_mutex);
+  boost::mutex::scoped_lock ql(update_queue_mutex);
+  no_lock_removeFromCache( p );
+  string parentKey = p.chop().getHash();
+  if ( cache.find( parentKey ) == cache.end() ) return;
+  cache[parentKey].contents.erase( p.getLastComponent() );
+}
+/*
 void picasaCache::removeFromCache( const pathParser &p ) { 
   if ( p.isRoot() ) return;
   boost::mutex::scoped_lock cl(cache_mutex);
   boost::mutex::scoped_lock ql(update_queue_mutex);
+  no_lock_removeFromCache( p );
+  return;
   list<pathParser> children = getChildrenInCache( p );
   for( list<pathParser>::iterator child = children.begin(); child != children.end(); ++child ) { 
     update_queue.remove( *child );
     cache.erase( child->getHash() );
   }
   ql.unlock();
-  pathParser parent = p;
-  parent.toParent();
+  pathParser parent = p.chop();
   string me = p.getLastComponent();
   struct cacheElement c = cache[parent.getHash()];
   c.contents.erase(me);
@@ -821,20 +921,10 @@ void picasaCache::removeFromCache( const pathParser &p ) {
   } else {
       boost::filesystem::remove_all( cacheDir + "/" + p.getFullName() );
   }
-}
+}*/
 
 
-bool picasaCache::getFromCache( const string &key, struct cacheElement &e ) {
-  boost::mutex::scoped_lock l(cache_mutex);
-  if ( cache.find( key ) == cache.end() ) return false;
-  e = cache[key];
-  return true;
-}
 
-void picasaCache::putIntoCache( const std::string &key, const struct cacheElement &e ) {
-  boost::mutex::scoped_lock l(cache_mutex);
-  cache[key] = e;
-}
 
 bool picasaCache::isCached( const string &key ) {
   boost::mutex::scoped_lock l(cache_mutex);
@@ -843,24 +933,10 @@ bool picasaCache::isCached( const string &key ) {
 
 
 bool picasaCache::isDir( const pathParser &path ) {
-  if ( path.haveUser() && path.getUser() == "logs" ) return false;
-  return ( ! path.haveImage() && path.isValid() );
-}
-
-bool picasaCache::isFile( const pathParser &path ) {
-  if ( path.haveUser() && ! path.haveAlbum() && path.getUser() == "logs" ) return true;
-  return ( path.haveImage() && path.isValid() );
-}
-
-bool picasaCache::exists( const pathParser &path ) {
-  if ( ! path.isValid() ) return false;
-  if ( isCached( path ) ) return true;
-  if ( ! path.haveUser() ) return true;
-  if ( path.getUser() == "test" ) { 
-    if ( ! path.haveAlbum() ) return true;
-    return ( path.getAlbum() == "album1" && ! path.haveImage() );
-  }
-  return false;
+  struct cacheElement e;
+  if ( getFromCache( path, e) ) { 
+    return ( e.type == cacheElement::DIRECTORY );
+  } else return false;
 }
 
 string picasaCache::getXAttr( const pathParser &p, const string &attrName ) throw (enum exceptionType) {
@@ -873,6 +949,7 @@ string picasaCache::getXAttr( const pathParser &p, const string &attrName ) thro
     ss << c;
     return ss.str();
   }
+  if ( isSpecial( p ) ) throw OBJECT_DOES_NOT_EXIST;
   c.buildPicasaObj( picasa );
   if ( ! c.picasaObj ) throw UNEXPECTED_ERROR;
   if ( attrName == "AuthKey" && p.getType() == pathParser::ALBUM ) {
@@ -890,22 +967,25 @@ string picasaCache::getXAttr( const pathParser &p, const string &attrName ) thro
 list<string> picasaCache::listXAttr( const pathParser &p ) throw (enum exceptionType) { 
   cacheElement c;
   if ( ! getFromCache( p, c ) ) throw OBJECT_DOES_NOT_EXIST;
+  list<string> ret;
+  ret.push_back( "CacheElement" );
+  if ( isSpecial( p ) ) return ret;
   c.buildPicasaObj( picasa );
   if ( ! c.picasaObj ) throw UNEXPECTED_ERROR;
-  list<string> ret;
   try {
     ret = c.picasaObj->listAttr();
     ret.push_back( "AuthKey" );
-    ret.push_back( "CacheElement" );
   } catch ( atomObj::exceptionType ) {
     throw OBJECT_DOES_NOT_EXIST;
   }
   return ret;
 }
 
-int picasaCache::getAttr( const pathParser &path, struct stat *stBuf ) { 
+int picasaCache::getAttr( const pathParser &path, struct stat *stBuf ) {
+  std::cerr << "picasaCache::getAttr(" << path.getFullName() <<"): start..."<< endl;
   struct cacheElement e;
   if ( ! getFromCache( path, e ) ) {
+    std::cerr << "picasaCache::getAttr(" << path.getFullName() <<"): not cached..."<< endl;
     // If we are not looking at a subdirectory of the root/user
     // and the path is not cached it doesn't exist 
     // (at least not now, maybe at some later point, 
@@ -914,7 +994,7 @@ int picasaCache::getAttr( const pathParser &path, struct stat *stBuf ) {
       case pathParser::USER:
 	try {
 	  doUpdate( path );
-	} catch ( enum exceptionType ex ) { 
+	} catch ( enum exceptionType ex ) {
 	  return -ENOENT;
 	}
 	if ( ! getFromCache( path, e ) ) return -ENOENT;
@@ -928,6 +1008,8 @@ int picasaCache::getAttr( const pathParser &path, struct stat *stBuf ) {
     }
   }
   pleaseUpdate( path );
+  std::cerr << "picasaCache::getAttr(" << path.getFullName() <<"): size..."<< e.size<<endl;
+  if (e.generated) std::cerr << "picasaCache::getAttr(" << path.getFullName() <<"): generated("<< e.cachePath.size()<< ")"<<endl;
   stBuf->st_size = e.size;
   switch ( e.type ) { 
 	  case cacheElement::DIRECTORY:
@@ -950,6 +1032,8 @@ int picasaCache::getAttr( const pathParser &path, struct stat *stBuf ) {
 		  }
 		  return 0;
   }
+  std::cerr << "Very weird !!!!!!!!!!!!!!!!!" << endl;
+  return 0;
 }
 
 void picasaCache::needPath( const pathParser &path ) {
@@ -957,11 +1041,11 @@ void picasaCache::needPath( const pathParser &path ) {
 }
 
 void picasaCache::unlink( const pathParser &p ) throw ( enum picasaCache::exceptionType ) {
-  if ( p.getUser() == "logs" )  {
+  if ( p == logPath )  {
     cacheElement c;
     getFromCache( p, c );
     c.cachePath="";
-    c.size=c.cachePath.size();
+    c.size=0;
     putIntoCache( p, c );
     log( "Clear log file.\n" );
     return;
@@ -984,7 +1068,7 @@ void picasaCache::unlink( const pathParser &p ) throw ( enum picasaCache::except
 
 void picasaCache::rmdir( const pathParser &p ) throw ( enum picasaCache::exceptionType ) {
   if ( p.isUser() ) { 
-    if ( p.getUser() == "logs" ) throw OPERATION_NOT_SUPPORTED;
+    if ( p == controlDirPath ) throw OPERATION_NOT_SUPPORTED;
     removeFromCache( p );
     return;
   } 
@@ -1100,12 +1184,11 @@ int fillBufFromString( string data, char *buf, size_t size, off_t offset ) {
 }
 
 int picasaCache::read( const pathParser &path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi ) {
-  if ( ! exists( path ) ) return 0;
-  if ( ! isFile( path ) ) return 0;
   int ret=0;
-
   struct cacheElement e;
-  if ( getFromCache( path, e ) ) { 
+  std::cerr<<"read(" << path.getFullName() << "): start " << endl;
+  if ( getFromCache( path, e ) ) {
+    if ( e.type != cacheElement::FILE ) return 0;
     if ( e.generated ) {
       if ( e.cachePath.size() > 0 ) { 
 	return fillBufFromString( e.cachePath, buf, size, offset );
@@ -1123,8 +1206,7 @@ int picasaCache::read( const pathParser &path, char *buf, size_t size, off_t off
     ret = pread(fd,buf,size, offset);
     close(fd);
     return ret;
-  }
-  return fillBufFromString( "Data not yet available...", buf, size, offset );
+  } else return 0;
 }
 
 int picasaCache::my_write( const pathParser &path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi ) {

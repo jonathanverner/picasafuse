@@ -139,7 +139,7 @@ int PicasaFS::create( const char *path, mode_t mode, struct fuse_file_info *fi) 
 int PicasaFS::fuse_open(const char *path, struct fuse_file_info *fi) {
   pathParser p(path);
   cerr << "fuse_open("<<p.getFullName()<<"): start"<<endl;
-  if ( ! self->cache->exists( p ) ) { 
+  if ( ! self->cache->isCached( p ) ) { 
     cerr << " Opening a nonexisting file " << p.getFullName() << endl;
     return -ENOENT;
   }
@@ -160,7 +160,7 @@ int PicasaFS::read(const char *path, char *buf, size_t size, off_t offset,
         (void) fi;
 	pathParser p(path);
 	cerr << "read("<<p.getFullName()<<"): start"<<endl;
-	if ( ! self->cache->exists( p ) ) return -ENOENT;
+	if ( ! self->cache->isCached( p ) ) return -ENOENT;
 	int ret = self->cache->read( p, buf, size, offset, fi );
 	cerr << "read("<<p.getFullName()<<"): success ("<< ret <<")"<<endl;
 	return ret;

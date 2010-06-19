@@ -128,8 +128,7 @@ class picasaCache {
 		~picasaCache();
 
 		bool isDir( const pathParser &p );
-		bool isFile( const pathParser &p );
-		bool exists( const pathParser &p );
+		bool isCached( const pathParser &p );
 
 		void needPath( const pathParser &p );
 
@@ -174,21 +173,33 @@ class picasaCache {
 		void pushAlbum( const pathParser p ) throw ( enum picasaCache::exceptionType );
 		void newAlbum( const pathParser p ) throw ( enum picasaCache::exceptionType );
 
-		// Warning: NOT THREAD SAFE. Need to acquire a lock on cache_mutex
-		// before calling this function.
-		std::list<pathParser> getChildrenInCache( const pathParser &p );
+		// WARNING: Need to acquire a lock on cache_mutex before calling this function.
+		//          This function does not acquire any locks.
+		// std::list<pathParser> getChildrenInCache( const pathParser &p );
 
 		bool isCached( const std::string &key );
-		bool isCached( const pathParser &p );
 		void clearCache();
+	
+		void createRootDir();
+		void insertControlDir();
+		static const pathParser controlDirPath, logPath;
+		bool isSpecial( const pathParser &path );
+		void log( std::string msg );
+		std::string toString();
+		
+		
+		bool insertDir( const pathParser &p, const std::string &authKey = "", bool writeable = false );
+		bool insertSpecialFile( const pathParser &p, bool world_readable = true, bool world_writeable = false );
 		bool getFromCache( const pathParser &p, struct cacheElement &e );
-		bool getFromCache( const std::string &key, struct cacheElement &e );
 		void putIntoCache( const pathParser &p, const struct cacheElement &e );
-		void putIntoCache( const std::string &key, const struct cacheElement &e );
 		void removeFromCache( const pathParser &p );
+		// WARNING: Need to acquire a lock on cache_mutex and update_queue_mutex before calling this function.
+		//          This function does not acquire any locks.
+		void no_lock_removeFromCache( const pathParser &p );
 		
 		time_t last_saved;
 		void saveCacheToDisk();
+
 
 		boost::mutex cache_mutex;
 		std::map< std::string, struct cacheElement > cache;
@@ -197,7 +208,6 @@ class picasaCache {
 		gAPI *api;
 		picasaService *picasa;
 
-		void log( std::string msg );
 };
 
 #endif /* _picasaCache_H */
