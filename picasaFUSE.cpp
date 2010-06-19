@@ -1,7 +1,9 @@
 // main.cpp
 #include "picasaFS.h"
 #include <fuse/fuse.h>
-#include <string>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 struct myfs_config {

@@ -3,13 +3,13 @@
 #include "picasaCache.h"
 #include "pathParser.h"
 
-#include <string>
+#include <string.h>
 
 #define _XOPEN_SOURCE 500
 
 #include <unistd.h>
 #include <errno.h>
-#include <attr/xattr.h>
+#include <linux/xattr.h>
 
 #include <iostream>
 
@@ -63,11 +63,11 @@ int PicasaFS::getxattr( const char *path, const char *attrName, char *buf, size_
   string attr( attrName );
   string value;
   int userPos = attr.find( "user." );
-  if ( userPos == string::npos ) return -ENOATTR;
+  if ( userPos == string::npos ) return -ENOENT;
   try {
     value = self->cache->getXAttr( p, attr.substr( 5 ) );
   } catch ( enum picasaCache::exceptionType ex ) {
-    return -ENOATTR;
+    return -ENOENT;
   }
   if ( sz == 0 ) return value.size();
   if ( value.size()  > sz ) return -ERANGE;

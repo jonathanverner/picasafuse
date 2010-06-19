@@ -12,6 +12,7 @@
  ***************************************************************/
 
 #include <iostream>
+#include <stdlib.h>
 
 #include "pathParser.h"
 
