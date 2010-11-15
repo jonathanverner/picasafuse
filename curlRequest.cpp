@@ -55,7 +55,7 @@ static size_t requestData(void *ptr, size_t size, size_t nmemb, void *Data ) {
 
 curlRequest::curlRequest(): 
 	request( GET ), body(""), URL(""), status(-1),
-	response(""), outFile("")
+	response(""), outFile(""),network_down(false)
 {
 }
 
@@ -159,8 +159,10 @@ bool curlRequest::perform() {
       if ( infl ) fclose( infl );
       curl_slist_free_all( curlHDRS );
       cerr << "getFeed() Error: CURL ERROR IN OPERATION(" <<cd <<") \n";
+      if ( cd == CURLE_COULDNT_CONNECT || cd == CURLE_COULDNT_RESOLVE_HOST ) network_down = true;
       return false;
   }
+  network_down=false;
   curl_easy_getinfo( curl, CURLINFO_RESPONSE_CODE, &status );
   if ( outfl ) fclose( outfl ); 
   if ( infl ) fclose( infl );

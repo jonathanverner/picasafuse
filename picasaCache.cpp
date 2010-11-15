@@ -183,6 +183,7 @@ void cacheMkdir( string cacheDir, const pathParser &p ) {
 
 const pathParser picasaCache::controlDirPath(".control");
 const pathParser picasaCache::logPath(".control/log");
+const pathParser picasaCache::statsPath( ".control/stats" );
 
 picasaCache::picasaCache( const string& user, const string& pass, const string& ch, int UpdateInterval, long maxPixels ):
 	api( new gAPI( user, pass, "picasaFUSE" ) ),
@@ -271,7 +272,35 @@ bool picasaCache::insertSpecialFile( const pathParser &p, bool world_readable, b
 void picasaCache::insertControlDir() {
   if ( ! isCached( controlDirPath ) ) insertDir( controlDirPath );
   if ( ! isCached( logPath ) ) insertSpecialFile( logPath );
+  insertSpecialFile( statsPath );
 }
+
+void picasaCache::updateStatsFile() {
+  pathParser stats = controlDirPath + "stats";
+  struct cacheElement e;
+  if ( ! getFromCache( statsPath, e ) ) return;
+  stringstream os;
+  os << "Update Queue:"<<endl;
+  boost::mutex::scoped_lock lu(update_queue_mutex);
+  for( std::list<pathParser>::const_iterator it = update_queue.begin(); it != update_queue.end(); ++it ) {
+    os << it->getFullName() << endl;
+  }
+  lu.unlock();
+  os << "Local Changes Queue:"<<endl;
+  boost::mutex::scoped_lock lc(local_change_queue_mutex);
+  for( std::list<pathParser>::const_iterator it = local_change_queue.begin(); it != local_change_queue.end(); ++it ) {
+    os << it->getFullName() << endl;
+  }
+  lc.unlock();
+  e.cachePath=os.str();
+  e.size = e.cachePath.size();
+  putIntoCache( statsPath, e );
+}
+
+void picasaCache::updateSpecial(const pathParser p) {
+  if ( p == statsPath ) updateStatsFile();
+}
+
 
 bool picasaCache::isSpecial( const pathParser &p ) { 
   if ( p == controlDirPath ) return true;
@@ -701,7 +730,10 @@ void picasaCache::doUpdate( const pathParser p ) throw ( enum picasaCache::excep
   time_t now = time( NULL );
   if ( ! p.isValid() ) return;
   if ( ! p.haveUser() ) return;
-  if ( isSpecial(p) ) return;
+  if ( isSpecial(p) ) {
+    updateSpecial(p);
+    return;
+  }
   
   /* Object is already present in the cache */
   if ( getFromCache( p, c ) ) {
@@ -1129,6 +1161,7 @@ void picasaCache::my_open( const pathParser &p, int flags ) throw ( enum picasaC
   if ( ! getFromCache( p, c) ) throw OBJECT_DOES_NOT_EXIST;
   c.numOfOpenWr++;
   putIntoCache( p, c);
+  if ( c.generated ) updateSpecial( p );
   if ( rdonly ) return;
   switch( p.getType() ) { 
     case pathParser::IMAGE:
@@ -1160,7 +1193,7 @@ set<string> picasaCache::ls( const pathParser &path ) throw ( enum picasaCache::
   if ( ! isDir(path) ) return ret;
   struct cacheElement e;
   if ( getFromCache( path , e ) ) {
-    pleaseUpdate( path );
+      pleaseUpdate( path );
     return e.contents;
   } else { 
     doUpdate( path );
@@ -1201,6 +1234,7 @@ int picasaCache::read( const pathParser &path, char *buf, size_t size, off_t off
       string err = "Error opening "+absPath+" (";
       err+=errBuf;
       err+=")\n";
+      pleaseUpdate( path );
       return fillBufFromString( err, buf, size, offset );
     }
     ret = pread(fd,buf,size, offset);

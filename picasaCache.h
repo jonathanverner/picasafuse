@@ -154,6 +154,7 @@ class picasaCache {
 		long numOfPixels;
 		
 		int updateInterval;
+		bool haveNetworkConnection;
 		boost::shared_ptr<boost::thread> update_thread;
 		boost::mutex update_queue_mutex, local_change_queue_mutex;
 		std::list<pathParser> update_queue,local_change_queue;
@@ -166,6 +167,8 @@ class picasaCache {
 		void updateUser( const pathParser p ) throw ( enum picasaCache::exceptionType );
 		void updateAlbum( const pathParser p ) throw ( enum picasaCache::exceptionType );
 		void updateImage( const pathParser p ) throw ( enum picasaCache::exceptionType );
+		void updateStatsFile();
+		void updateSpecial( const pathParser p );
 		void pleaseUpdate( const pathParser p );
 		void localChange( const pathParser p );
 
@@ -182,7 +185,7 @@ class picasaCache {
 	
 		void createRootDir();
 		void insertControlDir();
-		static const pathParser controlDirPath, logPath;
+		static const pathParser controlDirPath, logPath, statsPath;
 		bool isSpecial( const pathParser &path );
 		void log( std::string msg );
 		std::string toString();

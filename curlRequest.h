@@ -37,6 +37,8 @@ class curlRequest {
 		int status;
 
 		static void *getThreadCurlHandle();
+		
+		bool network_down;
 
 	public:
 		curlRequest();
@@ -49,10 +51,14 @@ class curlRequest {
 		void setInFile( const std::string &fileName, const std::string contentType ){ inFile=fileName; headers.push_back("Content-Type: "+contentType);};
 
 		bool perform();
+		
+		bool networkUP() const { return !network_down; };
 
 		std::string getResponse() { return response; }
 		int getStatus() { return status; };
 };
+
+
 
 
 #endif /* _curlRequest_H */
