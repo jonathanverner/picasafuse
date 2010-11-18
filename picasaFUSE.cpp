@@ -9,6 +9,7 @@
 struct myfs_config {
   char *cacheDir, *userName;
   int updateInterval, maxPixels;
+  int offline;
 };
 
 enum {
@@ -26,6 +27,7 @@ static struct fuse_opt myfs_opts[] = {
   MYFS_OPT("cachedir=%s",       	cacheDir, 0),
   MYFS_OPT("username=%s",       	userName, 0),
   MYFS_OPT("resize=%i",			maxPixels, 0 ),
+  MYFS_OPT("--offline",			offline, 1 ),
 
   FUSE_OPT_KEY("-V",             KEY_VERSION),
   FUSE_OPT_KEY("--version",      KEY_VERSION),
@@ -54,6 +56,7 @@ static int myfs_opt_proc(void *data, const char *arg, int key, struct fuse_args 
 	       "    -o cachedir=STRING		directory to store cached data\n"
 	       "    -o username=STRING		picasa username to authenticate as\n"
 	       "    -o resize=NUM		resize to at most NUM pixels when uploading pictures\n"
+	       "    --offline			do not try any network operations, work locally\n"
 	       "    -t NUM           		same as '-o update-interval=NUM'\n\n"
 	       , outargs->argv[0]);
 	fuse_opt_add_arg(outargs, "-ho");
@@ -75,6 +78,7 @@ int main (int argc, char **argv) {
   struct myfs_config conf;
   
   memset(&conf, 0, sizeof(conf));
+  conf.offline=false;
   
   fuse_opt_parse(&args, &conf, myfs_opts, myfs_opt_proc);
   std::string userName = "",
@@ -84,7 +88,7 @@ int main (int argc, char **argv) {
   if ( conf.cacheDir != NULL ) cacheDir = conf.cacheDir;
   if ( userName != "" ) password = getpass( "Enter picasa password:" );
 
-  PicasaFS picasa( userName, password, cacheDir, conf.updateInterval, conf.maxPixels );
+  PicasaFS picasa( userName, password, cacheDir, conf.updateInterval, conf.maxPixels, conf.offline );
 	
   // The first 3 parameters are identical to the fuse_main function.
   // The last parameter gives a pointer to a class instance, which is

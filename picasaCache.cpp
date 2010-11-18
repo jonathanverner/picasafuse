@@ -67,6 +67,9 @@ string picasaCache::exceptionString( exceptionType ex ) {
     case OPERATION_FAILED:
       ret = "OPERATION_FAILED";
       break;
+    case NO_NETWORK_CONNECTION:
+      ret = "NO_NETWORK_CONNECTION";
+      break;
     default:
       ret = "unknown exception";
       break;
@@ -182,6 +185,8 @@ void cacheMkdir( string cacheDir, const pathParser &p ) {
 }
 
 const pathParser picasaCache::controlDirPath(".control");
+const pathParser picasaCache::offlinePath(".control/offline");
+const pathParser picasaCache::onlinePath(".control/online");
 const pathParser picasaCache::logPath(".control/log");
 const pathParser picasaCache::statsPath( ".control/stats" );
 
@@ -189,7 +194,7 @@ picasaCache::picasaCache( const string& user, const string& pass, const string& 
 	api( new gAPI( user, pass, "picasaFUSE" ) ),
 	picasa( new picasaService( user, pass ) ),
 	work_to_do(false), kill_thread(false), cacheDir( ch ), updateInterval(UpdateInterval),
-	numOfPixels( maxPixels )
+	numOfPixels( maxPixels ), maxJobThreads( 10 ), haveNetworkConnection(true)
 {
   if ( updateInterval < 1 ) updateInterval = 600;
   mkdir( cacheDir.c_str(), 0755 );
@@ -211,6 +216,10 @@ picasaCache::picasaCache( const string& user, const string& pass, const string& 
   insertControlDir();
   if ( err != "" ) log( "Error reading cache from disk ("+err+")" );
   log( "----------NEW CACHE CREATED\n" );
+}
+
+bool picasaCache::goOnline() {
+  haveNetworkConnection = true;
 }
 
 string picasaCache::toString() { 
@@ -372,7 +381,13 @@ void picasaCache::newAlbum( const pathParser A ) throw ( enum picasaCache::excep
   getFromCache( A.chop(), c );
   c.contents.insert( album.getTitle() );
   putIntoCache( A.chop(), c );
-  doUpdate( A );
+  if ( haveNetworkConnection ) {
+    try {
+      doUpdate( A );
+    } catch (...) {
+      localChange(A);
+    }
+  } else localChange(A);
 }
 
 void picasaCache::pushAlbum( const pathParser A ) throw ( enum picasaCache::exceptionType ) {
@@ -389,6 +404,7 @@ void picasaCache::pushAlbum( const pathParser A ) throw ( enum picasaCache::exce
   }
   
   picasaAlbum *album = dynamic_cast<picasaAlbum *>( c.picasaObj );
+  if ( ! haveNetworkConnection ) throw NO_NETWORK_CONNECTION;
   if ( ! album->PUSH_CHANGES() ) throw OPERATION_FAILED;
   c.fromAlbum( album );
   c.localChanges = false;
@@ -409,6 +425,7 @@ void picasaCache::updateAlbum( const pathParser A ) throw ( enum picasaCache::ex
     if ( authKeyPos != string::npos ) { // Possibly an unlisted album, need not be in the cache
       string authKey = A.getAlbum().substr( authKeyPos+9 ),
              albumName = A.getAlbum().substr( 0, authKeyPos );
+      if ( ! haveNetworkConnection ) throw NO_NETWORK_CONNECTION;
       picasaAlbum album = picasa->getAlbumByName( albumName, A.getUser(), authKey );
       c.fromAlbum( new picasaAlbum( album ) );
       pathParser B = A.chop() + album.getTitle();
@@ -442,6 +459,7 @@ void picasaCache::updateAlbum( const pathParser A ) throw ( enum picasaCache::ex
   }
   
   picasaAlbum *album = dynamic_cast<picasaAlbum *>(c.picasaObj);
+  if ( ! haveNetworkConnection ) throw NO_NETWORK_CONNECTION;
   if ( ! album->PULL_CHANGES() ) {
     log( " ERROR: Error updating album info, throwing ... \n" );
     removeFromCache( A );
@@ -526,6 +544,7 @@ void picasaCache::pushImage( const pathParser P ) throw ( enum picasaCache::exce
 	magic.resize( numOfPixels, cacheDir + "/" + c.cachePath );
       }
       summary = magic.getComment( cacheDir + "/" + c.cachePath );
+      if ( ! haveNetworkConnection ) throw NO_NETWORK_CONNECTION;
       if ( ! photo->upload( cacheDir + "/" + c.cachePath ) ) {
 	log( "Failed uploading ...\n" );
 	throw OPERATION_FAILED;
@@ -550,6 +569,7 @@ void picasaCache::pushImage( const pathParser P ) throw ( enum picasaCache::exce
 	magic.resize( numOfPixels, cacheDir + "/" + c.cachePath );
       }
       summary = magic.getComment( cacheDir + "/" + c.cachePath );
+      if ( ! haveNetworkConnection ) throw NO_NETWORK_CONNECTION;
       try {
 	photo = album->addPhoto( cacheDir + "/" + c.cachePath, summary );
 	log( "Photo uploaded...\n" );
@@ -595,6 +615,8 @@ void picasaCache::updateImage( const pathParser P ) throw ( enum picasaCache::ex
     cerr << ss.str();
     throw UNEXPECTED_ERROR;
   }
+
+  if ( ! haveNetworkConnection ) throw NO_NETWORK_CONNECTION;
   
   if ( ! photo->PULL_CHANGES() ) {
     log( " ERROR: Error updating photo info, throwing ... \n" );
@@ -629,9 +651,9 @@ void picasaCache::updateImage( const pathParser P ) throw ( enum picasaCache::ex
 void picasaCache::updateUser ( const pathParser U ) throw ( enum picasaCache::exceptionType ) { 
   set<picasaAlbum> albums;
   set<string> albumDirNames;
-  
   log( "picasaCache::updateUser("+U.getUser()+"):\n" );
-
+  if ( ! haveNetworkConnection ) throw NO_NETWORK_CONNECTION;
+  
   try { 
     albums = picasa->albumList( U.getUser() );
     //log( "  albumList ...OK\n" );
@@ -720,6 +742,7 @@ void picasaCache::pushChange( const pathParser p ) throw ( enum picasaCache::exc
   struct cacheElement c;
   if ( ! getFromCache( p, c ) ) throw OBJECT_DOES_NOT_EXIST;
   if ( ! c.localChanges ) return;
+  if ( ! haveNetworkConnection ) throw NO_NETWORK_CONNECTION;
   if ( p.getType() == pathParser::IMAGE ) pushImage( p );
   else doUpdate( p );
 }
@@ -734,6 +757,8 @@ void picasaCache::doUpdate( const pathParser p ) throw ( enum picasaCache::excep
     updateSpecial(p);
     return;
   }
+
+  if ( ! haveNetworkConnection ) throw NO_NETWORK_CONNECTION;
   
   /* Object is already present in the cache */
   if ( getFromCache( p, c ) ) {
@@ -1090,7 +1115,14 @@ void picasaCache::unlink( const pathParser &p ) throw ( enum picasaCache::except
   picasaPhoto *photo = dynamic_cast<picasaPhoto *>( c.picasaObj );
   if ( ! photo ) {
     if ( ! c.localChanges ) throw OPERATION_FAILED;
-  } else photo->DELETE();
+  } else {
+    if ( ! haveNetworkConnection ) throw NO_NETWORK_CONNECTION;
+    try {
+      photo->DELETE();
+    } catch (...) {
+      throw OPERATION_FAILED;
+    }
+  }
   removeFromCache( p );
   getFromCache( p.chop(), c );
   c.contents.erase( p.getImage() );
@@ -1113,7 +1145,14 @@ void picasaCache::rmdir( const pathParser &p ) throw ( enum picasaCache::excepti
     picasaAlbum *album = dynamic_cast<picasaAlbum *>( c.picasaObj );
     if ( ! album ) {
       if ( ! c.localChanges ) throw OPERATION_FAILED;
-    } else album->DELETE();
+    } else {
+      if ( ! haveNetworkConnection ) throw NO_NETWORK_CONNECTION;
+      try {
+	album->DELETE();
+      } catch (...) {
+	throw OPERATION_FAILED;
+      }
+    }
     removeFromCache( p );
     getFromCache( p.chop(), c );
     c.contents.erase( p.getImage() );
@@ -1128,6 +1167,8 @@ void picasaCache::create( const pathParser &p ) throw ( enum picasaCache::except
   cacheElement c;
   if ( p.getType() != pathParser::IMAGE ) {
     if ( p.getUser() == "sync" ) picasaCache::sync();
+    else if ( p == offlinePath ) goOffLine();
+    else if ( p == onlinePath ) goOnline();
     throw UNIMPLEMENTED;
   }
   if ( p.getUser() != picasa->getUser() ) throw ACCESS_DENIED;

@@ -11,7 +11,7 @@ class picasaCache;
 
 class PicasaFS : public fusexx::fuse<PicasaFS> {
           public:
-		  PicasaFS ( const std::string &user="", const std::string &pass="", const std::string &cacheDir="/home/joni-test/.picasaFUSE", int updateInterval = 600, int maxPixels = 0 ); // Constructor
+		  PicasaFS ( const std::string& user = "", const std::string& pass = "", const std::string& cacheDir = "/home/joni-test/.picasaFUSE", int updateInterval = 600, int maxPixels = 0, bool offline = false ); // Constructor
 
                   // Overload the fuse methods
 		  static int getattr (const char *, struct stat *);

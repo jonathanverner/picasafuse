@@ -31,9 +31,10 @@ int exToRet( enum picasaCache::exceptionType ex ) {
 
 
 // Constructor
-PicasaFS::PicasaFS ( const string &user, const string &pass, const string &cacheDir, int updateInterval, int maxPixels ) : 
+PicasaFS::PicasaFS ( const string &user, const string &pass, const string &cacheDir, int updateInterval, int maxPixels, bool offline ) : 
 		cache( new picasaCache( user, pass, cacheDir, updateInterval, maxPixels ) ), UID( getuid() ), GID( getgid() )
 {
+  if ( offline ) cache->goOffLine();
         // all we're doing is initialize the member variables
 }
 

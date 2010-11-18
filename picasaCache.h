@@ -118,7 +118,7 @@ struct cacheElement {
 
 class picasaCache { 
 	public:
-		enum exceptionType { OBJECT_DOES_NOT_EXIST, UNIMPLEMENTED, ACCESS_DENIED, OPERATION_NOT_SUPPORTED, UNEXPECTED_ERROR, OPERATION_FAILED };
+		enum exceptionType { OBJECT_DOES_NOT_EXIST, UNIMPLEMENTED, ACCESS_DENIED, OPERATION_NOT_SUPPORTED, UNEXPECTED_ERROR, OPERATION_FAILED, NO_NETWORK_CONNECTION };
 	        static std::string exceptionString( exceptionType );
 
 
@@ -131,6 +131,10 @@ class picasaCache {
 		bool isCached( const pathParser &p );
 
 		void needPath( const pathParser &p );
+
+		bool isOffline() const { return ( ! haveNetworkConnection ); };
+		bool goOffLine() { haveNetworkConnection = false; };
+		bool goOnline();
 
 		std::set<std::string> ls( const pathParser &p ) throw (enum exceptionType);
                 int read( const pathParser &p, char *buf, size_t size, off_t offset, struct fuse_file_info *fi );
@@ -152,12 +156,13 @@ class picasaCache {
 	private:
 	  
 		long numOfPixels;
+		long maxJobThreads;
 		
 		int updateInterval;
-		bool haveNetworkConnection;
 		boost::shared_ptr<boost::thread> update_thread;
 		boost::mutex update_queue_mutex, local_change_queue_mutex;
 		std::list<pathParser> update_queue,local_change_queue;
+		volatile bool haveNetworkConnection;
 		volatile bool work_to_do;
 		volatile bool kill_thread;
 		void update_worker();
@@ -185,7 +190,7 @@ class picasaCache {
 	
 		void createRootDir();
 		void insertControlDir();
-		static const pathParser controlDirPath, logPath, statsPath;
+		static const pathParser controlDirPath, logPath, statsPath, updateQueuePath, priorityQueuePath, localChangesQueuePath, authKeysPath, syncPath, offlinePath, onlinePath, helpPath;
 		bool isSpecial( const pathParser &path );
 		void log( std::string msg );
 		std::string toString();

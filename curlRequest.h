@@ -26,6 +26,7 @@
 class curlRequest { 
 	public:
 		enum requestType { GET, POST, PUT, DELETE, MULTIPART_POST };
+		enum curlException { NO_NETWORK_CONNECTION };
 
 	private:
 		static std::map<boost::thread::id,void*> curl_handles;
