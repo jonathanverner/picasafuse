@@ -33,6 +33,7 @@
 #include <boost/serialization/string.hpp>
 #include <boost/serialization/map.hpp>
 #include <boost/serialization/set.hpp>
+#include <boost/date_time.hpp> 
 
 
 #include <sstream>
@@ -40,6 +41,7 @@
 
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/time.h>
 
 #include <string.h>
 
@@ -323,7 +325,10 @@ bool picasaCache::isSpecial( const pathParser &p ) {
 picasaCache::~picasaCache() {
   kill_thread = true;
   saveCacheToDisk();
+  update_thread->interrupt();
+  priority_update_thread->interrupt();
   update_thread->join();
+  priority_update_thread->join();
 }
 
 void picasaCache::saveCacheToDisk() { 
@@ -349,20 +354,36 @@ void picasaCache::log( string msg ) {
   putIntoCache( logPath, c );
 }
 
-void picasaCache::pleaseUpdate( const pathParser p ) { 
+void picasaCache::pleaseUpdate( const pathParser p, bool priority ) { 
 //  log("Scheduling update of: " + p.getFullName() + "\n");
-  if ( ! update_thread ) { 
-    update_thread = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&picasaCache::update_worker, this)));
+  if ( ! p.isValid() ) return;
+  if ( ! p.haveUser() ) return;
+  time_t now = time( NULL );
+  cacheElement c;
+  if ( (! isSpecial(p)) && getFromCache( p, c ) && (now - c.last_updated < updateInterval) && (! priority ) ) return;
+  if ( priority ) {
+    if ( ! priority_update_thread ) priority_update_thread = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&picasaCache::priority_worker, this)));
+    boost::mutex::scoped_lock pl(priority_update_queue_mutex);
+    for(std::list<pathParser>::iterator it = priority_update_queue.begin(); it != priority_update_queue.end(); ++it ) {
+      if ( *it == p ) return;
+    }
+    priority_update_queue.push_back(p);
+    pl.unlock();
+    if ( haveNetworkConnection ) priority_update_thread->interrupt();
+  } else if ( haveNetworkConnection ) {
+    if ( ! update_thread ) update_thread = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&picasaCache::update_worker, this )));
+    boost::mutex::scoped_lock ul(update_queue_mutex);
+    update_queue.push_back(p);
+    ul.unlock();
+    update_thread->interrupt();
   }
-  boost::mutex::scoped_lock l(update_queue_mutex);
-  update_queue.push_back(p);
-  work_to_do = true;
 }
 
 void picasaCache::localChange( const pathParser p ) { 
   boost::mutex::scoped_lock l(local_change_queue_mutex);
   local_change_queue.push_back(p);
-  work_to_do = true;
+  l.unlock();
+  if ( haveNetworkConnection ) update_thread->interrupt();
 }
 
 
@@ -808,47 +829,88 @@ void picasaCache::doUpdate( const pathParser p ) throw ( enum picasaCache::excep
   }
 }
 
-void picasaCache::update_worker() { 
+void picasaCache::priority_worker() {
+  boost::mutex::scoped_lock l(priority_update_queue_mutex);
+  l.unlock();
+  pathParser p;
+  bool wtodo;
+  while( ! kill_thread ) {
+    l.lock();
+    if ( (! priority_update_queue.empty() ) && haveNetworkConnection ) {
+      p = priority_update_queue.front();
+      l.unlock();
+      try {
+	//log( "update_worker: Processing scheduled job (" + p.getFullName() + ")\n" );
+	doUpdate( p );
+	l.lock();
+	priority_update_queue.pop_front();
+	l.unlock();
+      } catch (enum picasaCache::exceptionType ex ) {
+	log( "update_worker: Exception ("+exceptionString( ex ) + ") caught while doing update of "+p.getFullName() + "\n");
+      }
+    } else {
+      l.unlock();
+      boost::xtime t;
+      boost::xtime_get(&t, boost::TIME_UTC);
+      t.sec+=10;
+      try {
+	boost::this_thread::sleep(t);
+      } catch ( ... ) {
+      }
+    }
+  }
+}
+
+void picasaCache::update_worker() {
   boost::mutex::scoped_lock l(update_queue_mutex), lc(local_change_queue_mutex);
   l.unlock(); lc.unlock();
   pathParser p;
   time_t now;
-  bool wtodo=true;
-  while( ! kill_thread ) { 
-    if ( work_to_do ) { 
-      l.lock();
-      if ( update_queue.size() > 0 ) { 
-	p = update_queue.front();
-	update_queue.pop_front();
-	l.unlock();
-	try {
-	  //log( "update_worker: Processing scheduled job (" + p.getFullName() + ")\n" );
-	  doUpdate( p );
-	} catch (enum picasaCache::exceptionType ex ) {
-	  log( "update_worker: Exception ("+exceptionString( ex ) + ") caught while doing update of "+p.getFullName() + "\n");
-	}
-      } else l.unlock();
-      lc.lock();
-      if ( local_change_queue.size() > 0 ) { 
-	p = local_change_queue.front();
-	local_change_queue.pop_front();
-	lc.unlock();
-	try {
-	  pushChange( p );
-	} catch ( enum picasaCache::exceptionType ex ) { 
-	  log( "update_worker: Exception ("+exceptionString( ex ) + ") caught while doing update of "+p.getFullName() + "\n");
-	  switch( ex ) { 
-	    case OPERATION_FAILED:
-	      localChange( p );
-	  }
-	}
-      } else lc.unlock();
-      l.lock();
-        wtodo = ( update_queue.size() > 0 );
+  bool wtodo;
+  while( ! kill_thread ) {
+    l.lock();
+    if ( ! update_queue.empty() ) {
+      p = update_queue.front();
+      update_queue.remove(p);
       l.unlock();
-      lc.lock();
-        work_to_do = ( wtodo || local_change_queue.size() > 0 );
+      try {
+	//log( "update_worker: Processing scheduled job (" + p.getFullName() + ")\n" );
+	doUpdate( p );
+      } catch (enum picasaCache::exceptionType ex ) {
+	log( "update_worker: Exception ("+exceptionString( ex ) + ") caught while doing update of "+p.getFullName() + "\n");
+      }
+    } else l.unlock();
+    lc.lock();
+    if ( ! local_change_queue.empty() ) {
+      p = local_change_queue.front();
       lc.unlock();
+      try {
+	pushChange( p );
+	lc.lock();
+	local_change_queue.remove(p);
+	lc.unlock();
+      } catch ( enum picasaCache::exceptionType ex ) { 
+	log( "update_worker: Exception ("+exceptionString( ex ) + ") caught while doing update of "+p.getFullName() + "\n");
+	switch( ex ) {
+	  case OPERATION_FAILED:
+	    localChange( p );
+	}
+      }
+    } else lc.unlock();
+    l.lock();
+    wtodo = ( ! ( update_queue.empty() ) );
+    l.unlock();
+    lc.lock();
+    wtodo = ( wtodo || ( ! local_change_queue.empty() ) );
+    lc.unlock();
+    if ( ! wtodo ) {
+      boost::xtime t;
+      boost::xtime_get(&t, boost::TIME_UTC);
+      t.sec += 10;
+      try {
+	boost::this_thread::sleep(t);
+      } catch (...) {
+      }
     }
     now = time( NULL );
     if ( now - last_saved > 180 ) saveCacheToDisk();
@@ -1057,7 +1119,7 @@ int picasaCache::getAttr( const pathParser &path, struct stat *stBuf ) {
 	if ( ! getFromCache( path, e ) ) return -ENOENT;
 	break;
       case pathParser::ALBUM:
-	pleaseUpdate( path );
+	pleaseUpdate( path, true );
 	return -ENOENT;
 	break;
       default:
@@ -1275,7 +1337,7 @@ int picasaCache::read( const pathParser &path, char *buf, size_t size, off_t off
       string err = "Error opening "+absPath+" (";
       err+=errBuf;
       err+=")\n";
-      pleaseUpdate( path );
+      pleaseUpdate( path, true );
       return fillBufFromString( err, buf, size, offset );
     }
     ret = pread(fd,buf,size, offset);

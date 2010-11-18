@@ -159,14 +159,15 @@ class picasaCache {
 		long maxJobThreads;
 		
 		int updateInterval;
-		boost::shared_ptr<boost::thread> update_thread;
-		boost::mutex update_queue_mutex, local_change_queue_mutex;
-		std::list<pathParser> update_queue,local_change_queue;
 		volatile bool haveNetworkConnection;
+		boost::shared_ptr<boost::thread> update_thread, priority_update_thread;
+		boost::mutex priority_update_queue_mutex, update_queue_mutex, local_change_queue_mutex, job_threads_mutex;
+		std::list<pathParser> update_queue,local_change_queue, priority_update_queue;
 		volatile bool work_to_do;
 		volatile bool kill_thread;
 		void update_worker();
 		void doUpdate( const pathParser p ) throw ( enum picasaCache::exceptionType );
+		void priority_worker();
 		void pushChange( const pathParser p ) throw ( enum picasaCache::exceptionType );
 
 		void updateUser( const pathParser p ) throw ( enum picasaCache::exceptionType );
@@ -174,7 +175,7 @@ class picasaCache {
 		void updateImage( const pathParser p ) throw ( enum picasaCache::exceptionType );
 		void updateStatsFile();
 		void updateSpecial( const pathParser p );
-		void pleaseUpdate( const pathParser p );
+		void pleaseUpdate( const pathParser p, bool priority = false );
 		void localChange( const pathParser p );
 
 		void pushImage( const pathParser p ) throw ( enum picasaCache::exceptionType );
