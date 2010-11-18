@@ -191,12 +191,63 @@ const pathParser picasaCache::controlDirPath(".control");
 const pathParser picasaCache::syncPath(".control/sync");
 const pathParser picasaCache::offlinePath(".control/offline");
 const pathParser picasaCache::onlinePath(".control/online");
+
+const pathParser picasaCache::helpPath(".control/help");
 const pathParser picasaCache::logPath(".control/log");
 const pathParser picasaCache::statsPath( ".control/stats" );
 const pathParser picasaCache::authKeysPath( ".control/auth_keys" );
 const pathParser picasaCache::updateQueuePath(".control/update_queue");
 const pathParser picasaCache::priorityQueuePath(".control/priority_queue");
 const pathParser picasaCache::localChangesQueuePath(".control/local_changes_queue");
+
+const string help_text = "PicasaFUSE help"
+			 ""
+			 " The .control directory"
+			 "   help			... this file"
+			 "   log			... the log file"
+			 "   status			... a file containing some statistics about the filesystem"
+			 "   auth_keys			... a file containing album name = authkey pairs (for backup purposes)"
+			 "   update_queue		... files waiting to be updated"
+			 "   priority_update_queue	... files which will be updated with precedence (usually photos"
+			 "				    which some application tried to read but which were not yet downloaded"
+			 "   local_changes_queue	... albums/photos with local changes waiting to be updated on the server"
+			 ""
+			 " How to achieve ..."
+			 "   Q: How to cache some users albums?"
+			 "   A: mkdir his username in the base directory of the mounted filesystem"
+			 ""
+			 "   Q: How to stop caching some users albums?"
+			 "   A: rmdir his username in the base directory of the mounted filesystem"
+			 ""
+			 "   Q: How to cache an unlisted album of some user?"
+			 "   A: cd album_name?authkey=Gv12312asdafsdf in the user subdirectory, and replace 'Gv12312asdafsdf'"
+			 "      by the authkey of the album (you can find it from the link for the album"
+			 ""
+			 "   Q: How to create a new album?"
+			 "   A: Go to the directory corresponding to your username and do mkdir 'Album name'"
+			 "      (the filesystem must have been mounted with the username option)"
+			 ""
+			 "   Q: How to upload a photo to an album?"
+			 "   A: Simply copy it to the respective directory "
+			 "      (the filesystem must have been mounted with the username option)"
+			 ""
+			 "   Q: How to delete a photo/album?"
+			 "   A: Simply rmdir/rm it."
+			 "      (the filesystem must have been mounted with the username option)"
+			 ""
+			 "   Q: How to disable networking?"
+			 "   A: touch .control/offline"
+			 "      The filesystem will act as a local cache and will disallow some operations"
+			 "      (deleting photos/albums)"
+			 ""
+			 "   Q: How to enable networking?"
+			 "   A: touch .control/online"
+			 ""
+			 "   Advanced operations..."
+			 ""
+			 "      rm .control/log				... clears the logfile"
+			 "      rm .control/update_queue 		... clears the update queue"
+			 "      rm .control/priority_update_queue 	... clears the priority update queue";
 
 picasaCache::picasaCache( const string& user, const string& pass, const string& ch, int UpdateInterval, long maxPixels ):
 	api( new gAPI( user, pass, "picasaFUSE" ) ),
@@ -295,6 +346,12 @@ void picasaCache::insertControlDir() {
   insertSpecialFile( localChangesQueuePath );
   insertSpecialFile( statsPath );
   insertSpecialFile( authKeysPath );
+  insertSpecialFile( helpPath );
+  cacheElement c;
+  getFromCache( helpPath, c );
+  c.cachePath = help_text;
+  c.size = c.cachePath.size();
+  putIntoCache( helpPath, c);
 }
 
 void picasaCache::updateUQueueFile() {
