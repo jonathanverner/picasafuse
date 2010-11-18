@@ -470,8 +470,10 @@ void picasaCache::saveCacheToDisk() {
 
 void picasaCache::log( string msg ) { 
   time_t now = time( NULL );
+  char tm[50];
+  ctime_r( &now, tm );
   stringstream os;
-  os << now << ": " << msg;
+  os << tm << ": " << msg;
   struct cacheElement c;
   getFromCache( logPath, c );
   c.cachePath+=os.str();
@@ -671,14 +673,14 @@ void picasaCache::pushImage( const pathParser P ) throw ( enum picasaCache::exce
   log( "picasaCache::pushImage(" + P.getFullName() + "):\n" );
 
   if ( ! getFromCache( P, c ) ) {
-    log( "  ERROR: Object not present in cache, throwing ... \n" );
+    log( "picasaCache::pushImage("+P.getFullName()+"): ERROR: Object not present in cache, throwing...\n" );
     throw OBJECT_DOES_NOT_EXIST;
   }
   
   if ( c.localChanges ) {
     log( "picasaCache::pushImage("+P.getFullName()+"): local changes\n" );
     if ( ! c.finalized ) {
-      log( "Photo not finalized yet ... \n");
+      log( "picasaCache::pushImage("+P.getFullName()+"): photo not finalized yet...\n" );
       return;
     }
     c.buildPicasaObj( picasa );
@@ -692,15 +694,15 @@ void picasaCache::pushImage( const pathParser P ) throw ( enum picasaCache::exce
       summary = magic.getComment( cacheDir + "/" + c.cachePath );
       if ( ! haveNetworkConnection ) throw NO_NETWORK_CONNECTION;
       if ( ! photo->upload( cacheDir + "/" + c.cachePath ) ) {
-	log( "Failed uploading ...\n" );
+	log( "picasaCache::pushImage("+P.getFullName()+"): ERROR: Failed uploading. Throwing...\n" );
 	throw OPERATION_FAILED;
       }
       c.localChanges = false;
-      log( "Photo uploaded...\n" );
+      log( "picasaCache::pushImage("+P.getFullName()+"): photo uploaded...\n" );
       if ( photo->getSummary() != summary && summary != "") { 
 	photo->setSummary(summary);
 	if ( ! photo->UPDATE() ) c.localChanges = true;
-	log( "Photo updated...\n" );
+	log( "picasaCache::pushImage("+P.getFullName()+"): photo updated...\n" );
       }
     } else {
       cacheElement a;
@@ -708,7 +710,7 @@ void picasaCache::pushImage( const pathParser P ) throw ( enum picasaCache::exce
       a.buildPicasaObj( picasa );
       picasaAlbum *album = dynamic_cast<picasaAlbum *>( a.picasaObj );
       if ( ! album ) {
-	log( "Parent not an album !!! WTF???\n" );
+	log( "picasaCache::pushImage("+P.getFullName()+"): ERROR: Parent not an album !!! WTF ??? Throwing...\n" );
 	throw OPERATION_FAILED;
       }
       if ( numOfPixels > 0 ) {
@@ -718,12 +720,12 @@ void picasaCache::pushImage( const pathParser P ) throw ( enum picasaCache::exce
       if ( ! haveNetworkConnection ) throw NO_NETWORK_CONNECTION;
       try {
 	photo = album->addPhoto( cacheDir + "/" + c.cachePath, summary );
-	log( "Photo uploaded...\n" );
+	log( "picasaCache::pushImage("+P.getFullName()+"): photo uploaded...\n" );
 	c.fromPhoto( photo );
 	c.last_updated = time( NULL );
 	pleaseUpdate( P.chop() );
-      } catch ( atomObj::exceptionType &ex ) { 
-	log( "Failed posting new photo...\n" );
+      } catch ( atomObj::exceptionType &ex ) {
+	log( "picasaCache::pushImage("+P.getFullName()+"): ERROR: Failed posting new photo. Throwing...\n" );
 	throw OPERATION_FAILED;
       }
     }
