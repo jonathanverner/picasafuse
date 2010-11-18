@@ -50,9 +50,8 @@ struct cacheElement {
   ssize_t size;
   bool world_readable, writeable;
   bool localChanges; // true if local changes not yet pushed to the server
-  bool finalized; // false for files which were changed and not yet closed, true for everything else
-                  // (also not cached to disk)
-  int numOfOpenWr;
+  bool finalized; // false for files which were changed and not yet closed, true for everything else (also not cached to disk)
+  int numOfOpenWr; // Number of times the element was opend (not only for writing !!!)
 
   std::time_t last_updated;
   
