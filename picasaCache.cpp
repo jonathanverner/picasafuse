@@ -98,6 +98,7 @@ const struct cacheElement &cacheElement::operator=( const struct cacheElement &e
 		    contents = e.contents;
 		    return e;
 	    case cacheElement::FILE:
+	            authKey   = "";
 		    generated = e.generated;
 		    cachePath = e.cachePath;
 		    return e;
@@ -191,6 +192,7 @@ const pathParser picasaCache::offlinePath(".control/offline");
 const pathParser picasaCache::onlinePath(".control/online");
 const pathParser picasaCache::logPath(".control/log");
 const pathParser picasaCache::statsPath( ".control/stats" );
+const pathParser picasaCache::authKeysPath( ".control/auth_keys" );
 const pathParser picasaCache::updateQueuePath(".control/update_queue");
 const pathParser picasaCache::priorityQueuePath(".control/priority_queue");
 const pathParser picasaCache::localChangesQueuePath(".control/local_changes_queue");
@@ -279,6 +281,7 @@ bool picasaCache::insertSpecialFile( const pathParser &p, bool world_readable, b
   e.generated=true;
   e.world_readable = world_readable;
   e.writeable = world_writeable;
+  e.authKey   = "";
   cache[p.getHash()] = e;
   return true;
 }
@@ -290,6 +293,7 @@ void picasaCache::insertControlDir() {
   insertSpecialFile( updateQueuePath );
   insertSpecialFile( localChangesQueuePath );
   insertSpecialFile( statsPath );
+  insertSpecialFile( authKeysPath );
 }
 
 void picasaCache::updateUQueueFile() {
@@ -348,11 +352,26 @@ void picasaCache::updateStatsFile() {
   putIntoCache( statsPath, e );
 }
 
+void picasaCache::updateAuthKeys() {
+  stringstream os;
+  boost::mutex::scoped_lock l(cache_mutex);
+  for( map<string,cacheElement>::iterator it = cache.begin(); it != cache.end(); ++it ) {
+    if ( it->second.authKey != "" ) {
+      os << it->first <<" = " << it->second.authKey << std::endl;
+    }
+  }
+  cacheElement e = cache[authKeysPath.getHash()];
+  e.cachePath = os.str();
+  e.size = e.cachePath.size();
+  cache[authKeysPath.getHash()] = e;
+}
+
 void picasaCache::updateSpecial(const pathParser p) {
   if ( p == statsPath ) updateStatsFile();
   else if ( p == localChangesQueuePath ) updateLCQueueFile();
   else if ( p == updateQueuePath ) updateUQueueFile();
   else if ( p == priorityQueuePath ) updatePQueueFile();
+  else if ( p == authKeysPath ) updateAuthKeys();
 }
 
 
@@ -1295,6 +1314,7 @@ void picasaCache::create( const pathParser &p ) throw ( enum picasaCache::except
   c.localChanges=true;
   c.finalized=false;
   c.generated = false;
+  c.authKey="";
   c.name=p.getImage();
   c.size=0;
   c.last_updated=0;

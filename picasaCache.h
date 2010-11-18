@@ -174,6 +174,7 @@ class picasaCache {
 		void updateAlbum( const pathParser p ) throw ( enum picasaCache::exceptionType );
 		void updateImage( const pathParser p ) throw ( enum picasaCache::exceptionType );
 		void updateStatsFile();
+		void updateAuthKeys();
 		void updateLCQueueFile();
                 void updateUQueueFile();
                 void updatePQueueFile();
