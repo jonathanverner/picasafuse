@@ -191,6 +191,9 @@ const pathParser picasaCache::offlinePath(".control/offline");
 const pathParser picasaCache::onlinePath(".control/online");
 const pathParser picasaCache::logPath(".control/log");
 const pathParser picasaCache::statsPath( ".control/stats" );
+const pathParser picasaCache::updateQueuePath(".control/update_queue");
+const pathParser picasaCache::priorityQueuePath(".control/priority_queue");
+const pathParser picasaCache::localChangesQueuePath(".control/local_changes_queue");
 
 picasaCache::picasaCache( const string& user, const string& pass, const string& ch, int UpdateInterval, long maxPixels ):
 	api( new gAPI( user, pass, "picasaFUSE" ) ),
@@ -283,26 +286,63 @@ bool picasaCache::insertSpecialFile( const pathParser &p, bool world_readable, b
 void picasaCache::insertControlDir() {
   if ( ! isCached( controlDirPath ) ) insertDir( controlDirPath );
   if ( ! isCached( logPath ) ) insertSpecialFile( logPath );
+  insertSpecialFile( priorityQueuePath );
+  insertSpecialFile( updateQueuePath );
+  insertSpecialFile( localChangesQueuePath );
   insertSpecialFile( statsPath );
 }
 
-void picasaCache::updateStatsFile() {
-  pathParser stats = controlDirPath + "stats";
+void picasaCache::updateUQueueFile() {
   struct cacheElement e;
-  if ( ! getFromCache( statsPath, e ) ) return;
+  if ( ! getFromCache( updateQueuePath, e ) ) return;
   stringstream os;
-  os << "Update Queue:"<<endl;
-  boost::mutex::scoped_lock lu(update_queue_mutex);
+  boost::mutex::scoped_lock l(update_queue_mutex);
   for( std::list<pathParser>::const_iterator it = update_queue.begin(); it != update_queue.end(); ++it ) {
     os << it->getFullName() << endl;
   }
-  lu.unlock();
-  os << "Local Changes Queue:"<<endl;
-  boost::mutex::scoped_lock lc(local_change_queue_mutex);
+  e.cachePath=os.str();
+  e.size = e.cachePath.size();
+  putIntoCache( updateQueuePath, e );
+}
+
+void picasaCache::updatePQueueFile() {
+  struct cacheElement e;
+  if ( ! getFromCache( priorityQueuePath, e ) ) return;
+  stringstream os;
+  boost::mutex::scoped_lock l(priority_update_queue_mutex);
+  for( std::list<pathParser>::const_iterator it = priority_update_queue.begin(); it != priority_update_queue.end(); ++it ) {
+    os << it->getFullName() << endl;
+  }
+  e.cachePath=os.str();
+  e.size = e.cachePath.size();
+  putIntoCache( priorityQueuePath, e );
+}
+
+void picasaCache::updateLCQueueFile() {
+  struct cacheElement e;
+  if ( ! getFromCache( localChangesQueuePath, e ) ) return;
+  stringstream os;
+  boost::mutex::scoped_lock l(local_change_queue_mutex);
   for( std::list<pathParser>::const_iterator it = local_change_queue.begin(); it != local_change_queue.end(); ++it ) {
     os << it->getFullName() << endl;
   }
-  lc.unlock();
+  e.cachePath=os.str();
+  e.size = e.cachePath.size();
+  putIntoCache( localChangesQueuePath, e );
+}
+
+void picasaCache::updateStatsFile() {
+  struct cacheElement e;
+  if ( ! getFromCache( statsPath, e ) ) return;
+  stringstream os;
+  boost::mutex::scoped_lock lu(update_queue_mutex), lp(priority_update_queue_mutex),lc(local_change_queue_mutex);
+  os << "Update Queue size:" << update_queue.size() << std::endl; lu.unlock();
+  os << "Priority Queue size:" << priority_update_queue.size() << std::endl; lp.unlock();
+  os << "Local Changes Queue size:" << local_change_queue.size() << std::endl; lc.unlock();
+  os << "Network connection:";
+  if ( haveNetworkConnection ) os <<"online";
+  else os << "offline";
+  os<<std::endl;
   e.cachePath=os.str();
   e.size = e.cachePath.size();
   putIntoCache( statsPath, e );
@@ -310,6 +350,9 @@ void picasaCache::updateStatsFile() {
 
 void picasaCache::updateSpecial(const pathParser p) {
   if ( p == statsPath ) updateStatsFile();
+  else if ( p == localChangesQueuePath ) updateLCQueueFile();
+  else if ( p == updateQueuePath ) updateUQueueFile();
+  else if ( p == priorityQueuePath ) updatePQueueFile();
 }
 
 
@@ -1168,7 +1211,18 @@ void picasaCache::unlink( const pathParser &p ) throw ( enum picasaCache::except
     putIntoCache( p, c );
     log( "Clear log file.\n" );
     return;
+  } else if ( p == updateQueuePath ) {
+    boost::mutex::scoped_lock l(update_queue_mutex);
+    log( "Clearing update queue" );
+    update_queue.clear();
+    return;
+  } else if ( p == priorityQueuePath ) {
+    boost::mutex::scoped_lock l(priority_update_queue_mutex);
+    log( "Clearing priority update queue" );
+    priority_update_queue.clear();
+    return;
   }
+    
   if ( p.getType() != pathParser::IMAGE ) throw OPERATION_NOT_SUPPORTED;
   if ( p.getUser() != picasa->getUser() ) throw ACCESS_DENIED;
   cacheElement c;
