@@ -188,6 +188,7 @@ void cacheMkdir( string cacheDir, const pathParser &p ) {
 }
 
 const pathParser picasaCache::controlDirPath(".control");
+const pathParser picasaCache::syncPath(".control/sync");
 const pathParser picasaCache::offlinePath(".control/offline");
 const pathParser picasaCache::onlinePath(".control/online");
 const pathParser picasaCache::logPath(".control/log");
@@ -1301,7 +1302,7 @@ void picasaCache::rmdir( const pathParser &p ) throw ( enum picasaCache::excepti
 void picasaCache::create( const pathParser &p ) throw ( enum picasaCache::exceptionType ) { 
   cacheElement c;
   if ( p.getType() != pathParser::IMAGE ) {
-    if ( p.getUser() == "sync" ) picasaCache::sync();
+    if ( p == syncPath ) picasaCache::sync();
     else if ( p == offlinePath ) goOffLine();
     else if ( p == onlinePath ) goOnline();
     throw UNIMPLEMENTED;
