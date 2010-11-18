@@ -403,6 +403,11 @@ void picasaCache::saveCacheToDisk() {
     boost::mutex::scoped_lock l(cache_mutex);
     oa << cache;
   }
+  {
+    boost::mutex::scoped_lock uql(update_queue_mutex);
+    update_queue.sort();
+    update_queue.unique();
+  }
   last_saved = time( NULL );
 }
 
@@ -976,7 +981,7 @@ void picasaCache::update_worker() {
       }
     }
     now = time( NULL );
-    if ( now - last_saved > 180 ) saveCacheToDisk();
+    if ( now - last_saved > 300 ) saveCacheToDisk();
   }
 }
 
@@ -984,7 +989,9 @@ void picasaCache::sync() {
   list<pathParser> failed_list;
   boost::mutex::scoped_lock lc(local_change_queue_mutex);
   pathParser p;
-  while( local_change_queue.size() > 0 ) { 
+  local_change_queue.sort();
+  local_change_queue.unique();
+  while( ! local_change_queue.empty() ) {
     p = local_change_queue.front();
     local_change_queue.pop_front();
     try {

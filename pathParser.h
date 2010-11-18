@@ -65,6 +65,7 @@ class pathParser {
 		std::string getHash() const;
 
 		bool operator ==(const pathParser &p) const;
+		bool operator <(const pathParser &p) const;
 		
 		pathParser operator+( const std::string &name ) const;
 };

@@ -184,6 +184,11 @@ bool pathParser::operator==( const pathParser &p ) const {
   return ( p.userName == userName && p.albumName == albumName && p.image == image );
 }
 
+bool pathParser::operator<(const pathParser& p) const {
+  return (getHash() < p.getHash());
+}
+
+
 
 pathParser pathParser::operator+( const string& name ) const {
   pathParser ret(*this);
