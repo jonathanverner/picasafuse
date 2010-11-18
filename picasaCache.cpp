@@ -931,7 +931,6 @@ void picasaCache::doUpdate( const pathParser p ) throw ( enum picasaCache::excep
     stringstream estream;
     //estream << "doUpdate: p.getType() == " << p.getType() << "\n";
     //log(estream.str());
-   
     switch( p.getType() ) { 
       case pathParser::IMAGE:
 	updateImage( p );
@@ -1093,21 +1092,6 @@ void picasaCache::clearCache() {
   cache.clear();
 }
 
-/*list<pathParser> picasaCache::getChildrenInCache( const pathParser &p ) {
-  list<pathParser> ret;
-  struct cacheElement c = cache[ p.getHash() ];
-  pathParser child;
-  ret.push_back( p );
-  if ( c.type == cacheElement::DIRECTORY ) {
-    for( set<string>::iterator ch = c.contents.begin(); ch != c.contents.end(); ++ch ) {
-      child = p;
-      child.append( *ch );
-      ret.push_back( child );
-    }
-  }
-  return ret;
-}*/
-
 void picasaCache::no_lock_removeFromCache( const pathParser &p ) { 
   if ( p.isRoot() ) return;
   string key = p.getHash();
@@ -1140,45 +1124,11 @@ void picasaCache::removeFromCache( const pathParser &p ) {
   if ( cache.find( parentKey ) == cache.end() ) return;
   cache[parentKey].contents.erase( p.getLastComponent() );
 }
-/*
-void picasaCache::removeFromCache( const pathParser &p ) { 
-  if ( p.isRoot() ) return;
-  boost::mutex::scoped_lock cl(cache_mutex);
-  boost::mutex::scoped_lock ql(update_queue_mutex);
-  no_lock_removeFromCache( p );
-  return;
-  list<pathParser> children = getChildrenInCache( p );
-  for( list<pathParser>::iterator child = children.begin(); child != children.end(); ++child ) { 
-    update_queue.remove( *child );
-    cache.erase( child->getHash() );
-  }
-  ql.unlock();
-  pathParser parent = p.chop();
-  string me = p.getLastComponent();
-  struct cacheElement c = cache[parent.getHash()];
-  c.contents.erase(me);
-  cache[parent.getHash()] = c;
-  cache.erase( p.getHash() );
-  cl.unlock();
-  log( "rm -rf " + cacheDir + "/" + p.getFullName() + "\n" );
-  if ( c.type == cacheElement::FILE ) { 
-    try {
-      boost::filesystem::remove( cacheDir+"/"+c.cachePath );
-    } catch (...) {
-    }
-  } else {
-      boost::filesystem::remove_all( cacheDir + "/" + p.getFullName() );
-  }
-}*/
-
-
-
 
 bool picasaCache::isCached( const string &key ) {
   boost::mutex::scoped_lock l(cache_mutex);
   return (cache.find(key) != cache.end() );
 }
-
 
 bool picasaCache::isDir( const pathParser &path ) {
   struct cacheElement e;
@@ -1439,7 +1389,7 @@ set<string> picasaCache::ls( const pathParser &path ) throw ( enum picasaCache::
   if ( getFromCache( path , e ) ) {
       pleaseUpdate( path );
     return e.contents;
-  } else { 
+  } else {
     doUpdate( path );
     if ( getFromCache( path, e ) ) { 
       return e.contents;

@@ -213,12 +213,15 @@ class picasaCache {
 		void saveCacheToDisk();
 
 
+
+
 		boost::mutex cache_mutex;
 		std::map< std::string, struct cacheElement > cache;
 		std::string cacheDir;
 
 		gAPI *api;
 		picasaService *picasa;
+
 
 };
 
