@@ -17,11 +17,13 @@
 #include <string>
 #include <list>
 #include <iosfwd>
-
+#include <boost/shared_ptr.hpp>
 
 class picasaPhoto;
+class picasaAlbum;
 
-
+typedef boost::shared_ptr<picasaPhoto> picasaPhotoPtr;
+typedef boost::shared_ptr<picasaAlbum> picasaAlbumPtr;
 
 #include "atomEntry.h"
 
@@ -51,9 +53,9 @@ class picasaAlbum : public atomEntry {
 		void setAccessType( enum accessType access );
 
 
-		picasaPhoto *addPhoto( const std::string &fileName, const std::string &Summary = "", const std::string &Title = ""   ) throw ( enum atomObj::exceptionType );
+		picasaPhotoPtr addPhoto( const std::string &fileName, const std::string &Summary = "", const std::string &Title = ""   ) throw ( enum atomObj::exceptionType );
 
-		std::list<picasaPhoto *> getPhotos();
+		std::list<picasaPhotoPtr> getPhotos();
 
 		friend class picasaService;
 		friend std::ostream &operator<<(std::ostream &out, const picasaAlbum &album);

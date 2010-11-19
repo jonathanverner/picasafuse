@@ -142,7 +142,7 @@ void cacheElement::buildPicasaObj(picasaService* picasa) {
 }
 
 
-void cacheElement::fromAlbum(picasaAlbum *album) {
+void cacheElement::fromAlbum(picasaAlbumPtr album) {
   type = cacheElement::DIRECTORY;
   name = album->getTitle();
   size = sizeof(char)*1024;
@@ -157,7 +157,7 @@ void cacheElement::fromAlbum(picasaAlbum *album) {
   picasaObj = album;
 }
 
-void cacheElement::fromPhoto(picasaPhoto *photo) {
+void cacheElement::fromPhoto(picasaPhotoPtr photo) {
   type = cacheElement::FILE;
   name = photo->getTitle();
   size = photo->getSize();
@@ -521,7 +521,8 @@ void picasaCache::newAlbum( const pathParser A ) throw ( enum picasaCache::excep
     updateUser( A.chop() );
   }
   if ( ! getFromCache( A.chop(), c ) ) throw UNEXPECTED_ERROR;
-  c.fromAlbum( new picasaAlbum( album ) );
+  picasaAlbumPtr a( new picasaAlbum( album ) );
+  c.fromAlbum( a );
   c.contents.clear();
   c.localChanges = true;
   c.last_updated = 0;
@@ -551,7 +552,7 @@ void picasaCache::pushAlbum( const pathParser A ) throw ( enum picasaCache::exce
     throw UNEXPECTED_ERROR;
   }
   
-  picasaAlbum *album = dynamic_cast<picasaAlbum *>( c.picasaObj );
+  picasaAlbumPtr album = boost::dynamic_pointer_cast<picasaAlbum,atomEntry>(c.picasaObj);
   if ( ! haveNetworkConnection ) throw NO_NETWORK_CONNECTION;
   if ( ! album->PUSH_CHANGES() ) throw OPERATION_FAILED;
   c.fromAlbum( album );
@@ -575,7 +576,8 @@ void picasaCache::updateAlbum( const pathParser A ) throw ( enum picasaCache::ex
              albumName = A.getAlbum().substr( 0, authKeyPos );
       if ( ! haveNetworkConnection ) throw NO_NETWORK_CONNECTION;
       picasaAlbum album = picasa->getAlbumByName( albumName, A.getUser(), authKey );
-      c.fromAlbum( new picasaAlbum( album ) );
+      picasaAlbumPtr a( new picasaAlbum( album ) );
+      c.fromAlbum( a );
       pathParser B = A.chop() + album.getTitle();
       putIntoCache( B, c );
       getFromCache( A.chop(), c );
@@ -606,7 +608,7 @@ void picasaCache::updateAlbum( const pathParser A ) throw ( enum picasaCache::ex
     throw UNEXPECTED_ERROR;
   }
   
-  picasaAlbum *album = dynamic_cast<picasaAlbum *>(c.picasaObj);
+  picasaAlbumPtr album = boost::dynamic_pointer_cast<picasaAlbum,atomEntry>(c.picasaObj);
   if ( ! haveNetworkConnection ) throw NO_NETWORK_CONNECTION;
   if ( ! album->PULL_CHANGES() ) {
     log( " ERROR: Error updating album info, throwing ... \n" );
@@ -624,10 +626,10 @@ void picasaCache::updateAlbum( const pathParser A ) throw ( enum picasaCache::ex
     putIntoCache( A.chop(), u );
   }
   
-  list<picasaPhoto *> photos = album->getPhotos();
+  list<picasaPhotoPtr> photos = album->getPhotos();
   
   set<string> photoTitles;
-  for( list<picasaPhoto *>::iterator p = photos.begin(); p != photos.end(); ++p )
+  for( list<picasaPhotoPtr>::iterator p = photos.begin(); p != photos.end(); ++p )
     photoTitles.insert( (*p)->getTitle() );
 
   // Remove photos present in the album but not on picasa
@@ -647,7 +649,7 @@ void picasaCache::updateAlbum( const pathParser A ) throw ( enum picasaCache::ex
   }
 
   // Add new photos and update old ones
-  for( list<picasaPhoto *>::iterator p = photos.begin(); p != photos.end(); ++p ) {   
+  for( list<picasaPhotoPtr>::iterator p = photos.begin(); p != photos.end(); ++p ) {
     pName = (*p)->getTitle();
     if ( c.contents.find( pName ) == c.contents.end() ) { // A new photo
       pElement.fromPhoto( *p );
@@ -684,7 +686,7 @@ void picasaCache::pushImage( const pathParser P ) throw ( enum picasaCache::exce
       return;
     }
     c.buildPicasaObj( picasa );
-    picasaPhoto *photo = dynamic_cast<picasaPhoto *>(c.picasaObj);
+    picasaPhotoPtr photo = boost::dynamic_pointer_cast<picasaPhoto,atomEntry>(c.picasaObj);
     convert magic;
     string summary = "";
     if ( photo ) {
@@ -708,7 +710,7 @@ void picasaCache::pushImage( const pathParser P ) throw ( enum picasaCache::exce
       cacheElement a;
       getFromCache( P.chop(), a );
       a.buildPicasaObj( picasa );
-      picasaAlbum *album = dynamic_cast<picasaAlbum *>( a.picasaObj );
+      picasaAlbumPtr album = boost::dynamic_pointer_cast<picasaAlbum,atomEntry>( a.picasaObj );
       if ( ! album ) {
 	log( "picasaCache::pushImage("+P.getFullName()+"): ERROR: Parent not an album !!! WTF ??? Throwing...\n" );
 	throw OPERATION_FAILED;
@@ -754,7 +756,7 @@ void picasaCache::updateImage( const pathParser P ) throw ( enum picasaCache::ex
 
   log( " No local changes...\n" );
   c.buildPicasaObj(picasa);
-  picasaPhoto *photo = dynamic_cast<picasaPhoto *>(c.picasaObj);
+  picasaPhotoPtr photo = boost::dynamic_pointer_cast<picasaPhoto,atomEntry>(c.picasaObj);
   if ( ! photo ) {
     stringstream ss;
     ss << c;
@@ -848,7 +850,7 @@ void picasaCache::updateUser ( const pathParser U ) throw ( enum picasaCache::ex
       if ( getFromCache( p + *a, d ) ) {
 	if ( ! d.picasaObj ) d.buildPicasaObj( picasa );
 	if ( d.picasaObj ) { 
-	  if ( dynamic_cast<picasaAlbum*>(d.picasaObj)->getAccessType() == picasaAlbum::UNLISTED ) {	    
+	  if ( boost::dynamic_pointer_cast<picasaAlbum,atomEntry>(d.picasaObj)->getAccessType() == picasaAlbum::UNLISTED ) {
 	    albumDirNames.insert( *a );
 	  } else {
 	    log( " ignoring public album " + *a + "\n" );
@@ -880,7 +882,8 @@ void picasaCache::updateUser ( const pathParser U ) throw ( enum picasaCache::ex
   for( set<picasaAlbum>::iterator a = albums.begin(); a != albums.end(); ++a ) {
     if ( getFromCache( U + a->getTitle(), c) ) lu = c.last_updated;
     else lu = 0;
-    c.fromAlbum( new picasaAlbum( *a ) );
+    picasaAlbumPtr ap( new picasaAlbum( *a ) );
+    c.fromAlbum( ap );
     c.last_updated = lu;
     putIntoCache( U + a->getTitle(), c);
   }
@@ -1151,7 +1154,7 @@ string picasaCache::getXAttr( const pathParser &p, const string &attrName ) thro
   c.buildPicasaObj( picasa );
   if ( ! c.picasaObj ) throw UNEXPECTED_ERROR;
   if ( attrName == "AuthKey" && p.getType() == pathParser::ALBUM ) {
-    return dynamic_cast<picasaAlbum *>(c.picasaObj)->getAuthKey();
+    return boost::dynamic_pointer_cast<picasaAlbum,atomEntry>(c.picasaObj)->getAuthKey();
   }
   string ret; 
   try {
@@ -1264,7 +1267,7 @@ void picasaCache::unlink( const pathParser &p ) throw ( enum picasaCache::except
   cacheElement c;
   if ( ! getFromCache( p, c ) ) throw OBJECT_DOES_NOT_EXIST;
   c.buildPicasaObj( picasa );
-  picasaPhoto *photo = dynamic_cast<picasaPhoto *>( c.picasaObj );
+  picasaPhotoPtr photo = boost::dynamic_pointer_cast<picasaPhoto,atomEntry>( c.picasaObj );
   if ( ! photo ) {
     if ( ! c.localChanges ) throw OPERATION_FAILED;
   } else {
@@ -1294,7 +1297,7 @@ void picasaCache::rmdir( const pathParser &p ) throw ( enum picasaCache::excepti
     if ( ! getFromCache( p, c ) ) throw OBJECT_DOES_NOT_EXIST;
     if ( c.contents.size() > 0 ) throw OPERATION_FAILED;
     c.buildPicasaObj( picasa );
-    picasaAlbum *album = dynamic_cast<picasaAlbum *>( c.picasaObj );
+    picasaAlbumPtr album = boost::dynamic_pointer_cast<picasaAlbum,atomEntry>( c.picasaObj );
     if ( ! album ) {
       if ( ! c.localChanges ) throw OPERATION_FAILED;
     } else {
@@ -1327,7 +1330,6 @@ void picasaCache::create( const pathParser &p ) throw ( enum picasaCache::except
   if ( ! getFromCache( p.chop(), c ) || ! getFromCache( p.chop().chop(), c ) || getFromCache( p, c ) ) throw OPERATION_FAILED;
   log( "create("+p.getFullName()+"...): creating file.\n" );
   c.type=cacheElement::FILE;
-  c.picasaObj=NULL;
   c.localChanges=true;
   c.finalized=false;
   c.generated = false;

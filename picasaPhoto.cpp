@@ -134,16 +134,14 @@ list<string> picasaPhoto::getComments() {
   atomFeed commentFeed( api );
   string URL = picasaService::commentFeedURL( getUser(), getAlbumID(), getPhotoID(), getAuthKey() );
   commentFeed.loadFromURL( URL );
-  list<atomEntry *> comments = commentFeed.getEntries();
+  list<atomEntryPtr> comments = commentFeed.getEntries();
   list<string> ret;
   try { 
-    for(list<atomEntry *>::iterator it=comments.begin(); it != comments.end(); it++)
+    for(list<atomEntryPtr>::iterator it=comments.begin(); it != comments.end(); it++)
       ret.push_back( (*it)->xml->FirstChildElement()->FirstChildElement("content")->GetText() );
   } catch ( ticpp::Exception &ex ) { 
     cerr << " picasaPhoto::getComments(): " << ex.what() << "\n";
   }
-  for(list<atomEntry *>::iterator it=comments.begin(); it != comments.end(); it++)
-    delete *it;
   return ret;
 }
 

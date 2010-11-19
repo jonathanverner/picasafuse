@@ -77,7 +77,7 @@ bool atomEntry::PUSH_CHANGES() {
 
 bool atomEntry::DELETE() { 
   api->DELETE( editURL );
-  delete xml;
+  xml.reset();
   return true; // FIXME: Find out status from api->DELETE
 }
 

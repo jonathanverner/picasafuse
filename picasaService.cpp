@@ -30,9 +30,9 @@ set<picasaAlbum> picasaService::albumList( const string &user ) throw (enum exce
   if ( ! albumFeed.loadFromURL( albumFeedURL( user ) ) ) {
     throw GENERAL_ERROR;
   }
-  list<atomEntry *> albums = albumFeed.getEntries();
+  list<atomEntryPtr> albums = albumFeed.getEntries();
   set<picasaAlbum> ret;
-  for(list<atomEntry *>::iterator a = albums.begin(); a != albums.end(); ++a) { 
+  for(list<atomEntryPtr>::iterator a = albums.begin(); a != albums.end(); ++a) {
     picasaAlbum album( **a );
     ret.insert( album );
   }
@@ -46,14 +46,12 @@ picasaAlbum picasaService::getAlbumByID( const std::string &albumID, const std::
   if ( ! album.loadFromURL( albumURL( us, albumID, authKey ) ) ) { 
     throw GENERAL_ERROR;
   }
-  album.deleteXmlOnExit=false;
   return album;
 }
 
 
 picasaAlbum picasaService::newAlbum( const std::string& Title, const std::string& Desc, const std::string& Location, picasaAlbum::accessType access, bool comments, const std::string& keywords ) {
   picasaAlbum album( api, Title, Desc, Location, access, comments, keywords );
-  album.deleteXmlOnExit=false;
   return album;
 }
 
@@ -66,20 +64,19 @@ picasaAlbum picasaService::getAlbumByName( const string& albumName, const string
   if ( ! album.loadFromURL( albumNameURL( us, albumName, authKey ) ) ) { 
     throw GENERAL_ERROR;
   }
-  album.deleteXmlOnExit=false;
   return album;
 }
 
 
-atomEntry* picasaService::albumFromXML(const std::string& xml) const {
-//  return NULL;
-  picasaAlbum *ret =  new picasaAlbum( api );
+atomEntryPtr picasaService::albumFromXML(const std::string& xml) const {
+  atomEntryPtr ret( new picasaAlbum( api ) );
   ret->loadFromXML( xml );
   return ret;
 }
 
-atomEntry* picasaService::photoFromXML( const std::string& xml ) const {
-  return new picasaPhoto( api, xml );
+atomEntryPtr picasaService::photoFromXML( const std::string& xml ) const {
+  atomEntryPtr ret( new picasaPhoto( api, xml ) );
+  return ret;
 }
 
 std::string picasaService::getUser() const {

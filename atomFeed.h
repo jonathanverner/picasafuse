@@ -17,6 +17,7 @@
 
 #include <string>
 #include <list>
+#include <boost/shared_ptr.hpp>
 
 class gAPI;
 class atomEntry;
@@ -25,12 +26,15 @@ namespace ticpp {
   class Document;
 }
 
+typedef boost::shared_ptr<atomEntry> atomEntryPtr;
+
 class atomFeed : public atomObj { 
 	public:
 		atomFeed( const atomFeed& a );
 		atomFeed( gAPI *api );		
 		bool addNewEntry( atomEntry *entry );
-		std::list<atomEntry *> getEntries();
+		std::list<atomEntryPtr> getEntries();
+		
 
 		friend class picasaAlbum;
 		friend class picasaPhoto;

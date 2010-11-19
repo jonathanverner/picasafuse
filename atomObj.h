@@ -16,6 +16,7 @@
 
 #include <string>
 #include <list>
+#include <boost/shared_ptr.hpp>
 
 class gAPI;
 
@@ -24,14 +25,15 @@ namespace ticpp {
   class Element;
 }
 
+typedef boost::shared_ptr<ticpp::Document> ticppDocumentPtr;
+
 class atomObj { 
 	protected:
 		gAPI *api;
-		ticpp::Document *xml;
+		ticppDocumentPtr xml;
 		std::string selfURL, editURL, altURL;
 		void extractURLs();
 		void extractURLs( const ticpp::Element *root );
-		bool deleteXmlOnExit;
 
 
 	protected:
@@ -43,10 +45,10 @@ class atomObj {
 		bool loadFromURL( const std::string & URL );
 		bool loadFromFile( const std::string & fileName );
 		bool loadFromXML( const std::string & xml );
-		bool loadFromXML( ticpp::Document *doc ); // By default will not be deleted by the destructor of atomObj
+		bool loadFromXML( ticppDocumentPtr doc );
 
 		void writeToFile( const std::string & fileName );
-		ticpp::Document *getXML();
+		ticppDocumentPtr getXML();
 
 		std::string getXMLElentContent(const std::string &elementName);
 		void addOrSet( ticpp::Element *where, const std::string name, const std::string value );

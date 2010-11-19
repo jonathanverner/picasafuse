@@ -33,13 +33,11 @@ bool atomFeed::addNewEntry( atomEntry *entry ) {
   return entry->loadFromXML( api->POST( selfURL, entry->getStringXML() ) );
 };
 
-std::list<atomEntry *> atomFeed::getEntries() {
-  atomEntry *ent;
+std::list<atomEntryPtr> atomFeed::getEntries() {
   ticpp::Iterator< ticpp::Element > entry("entry");
-  list<atomEntry *> ret;
+  list<atomEntryPtr> ret;
   for( entry = entry.begin( xml->FirstChildElement() ); entry != entry.end(); entry++ ) {
-    ent = new atomEntry( api, *entry );
-    ent->deleteXmlOnExit=false;
+    atomEntryPtr ent( new atomEntry( api, *entry ) );
     ret.push_back( ent );
   }
   return ret;

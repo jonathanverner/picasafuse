@@ -23,9 +23,9 @@
 using namespace std;
 
 
-atomObj::atomObj( gAPI *API ): api(API), xml(NULL), deleteXmlOnExit(false) {};
+atomObj::atomObj( gAPI *API ): api(API) {};
 atomObj::atomObj( const atomObj& a ): 
-  api(a.api), xml(a.xml), deleteXmlOnExit(a.deleteXmlOnExit),
+  api(a.api), xml(a.xml), 
   selfURL(a.selfURL), editURL(a.editURL), altURL(a.altURL)
 {
 }
@@ -34,13 +34,11 @@ bool atomObj::operator<( const atomObj &a ) const {
   return selfURL < a.selfURL;
 }
 
-bool atomObj::loadFromXML( const string & data ) { 
-  if ( xml && deleteXmlOnExit ) {
-    delete xml;
-    xml = NULL;
-  }
-  try { 
-    xml = new ticpp::Document();
+bool atomObj::loadFromXML( const string & data ) {
+  xml.reset();
+  try {
+    ticppDocumentPtr p(new ticpp::Document());
+    xml = p;
     xml->Parse( data );
     extractURLs();
     return true;
@@ -49,8 +47,7 @@ bool atomObj::loadFromXML( const string & data ) {
     cerr << "------------ BEGIN XML --------------\n";
     cerr << data << "\n";
     cerr << "------------ END XML --------------\n";
-    delete xml;
-    xml=NULL;
+    xml.reset();
     cerr.flush();
     return false;
   }
@@ -62,12 +59,10 @@ bool atomObj::loadFromURL( const string & URL ) {
 };
 
 bool atomObj::loadFromFile( const string & fileName )  {
-  if ( xml && deleteXmlOnExit ) {
-    delete xml;
-    xml = NULL;
-  }
+  xml.reset();
   try { 
-    xml = new ticpp::Document( fileName );
+    ticppDocumentPtr p(new ticpp::Document( fileName ) );
+    xml = p;
     extractURLs();
     return true;
   } catch ( ticpp::Exception &ex ) { 
@@ -75,21 +70,16 @@ bool atomObj::loadFromFile( const string & fileName )  {
 /*    cerr << "------------ BEGIN XML --------------\n";
     cerr << data << "\n";
     cerr << "------------ END XML --------------\n";*/
-    delete xml;
-    xml=NULL;
+    xml.reset();
     return false;
   }
 };
 
-bool atomObj::loadFromXML( ticpp::Document *doc ) {
-  if ( xml && deleteXmlOnExit ) {
-    delete xml;
-    xml = NULL;
-  }
+bool atomObj::loadFromXML( ticppDocumentPtr doc ) {
+  xml.reset();
   try { 
     xml = doc;
     extractURLs();
-    deleteXmlOnExit=false;
     return true;
   } catch ( ticpp::Exception &ex ) { 
     cerr << " atomObj::loadFromXML( ticpp::Document *doc ): Error while extracting URLs: " << ex.what() << "\n";
@@ -97,7 +87,7 @@ bool atomObj::loadFromXML( ticpp::Document *doc ) {
   }
 }
 
-void atomObj::extractURLs() { 
+void atomObj::extractURLs() {
     extractURLs( xml->FirstChildElement() );
 }
 
@@ -124,7 +114,7 @@ string atomObj::getStringXML() {
   return oss.str();
 }
 
-ticpp::Document *atomObj::getXML() { 
+ticppDocumentPtr atomObj::getXML() {
   return xml;
 }
 
@@ -212,6 +202,4 @@ void atomObj::setTitle(const string &Title) {
   addOrSet( xml->FirstChildElement(), "title", Title );
 }
 
-atomObj::~atomObj() { 
-  if ( xml && deleteXmlOnExit ) delete xml;
-};
+atomObj::~atomObj() {};

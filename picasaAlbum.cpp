@@ -135,7 +135,7 @@ void picasaAlbum::setLocation( string location ) {
    addOrSet( xml->FirstChildElement(), "gphoto:location", location );
 }
 
-list<picasaPhoto *> picasaAlbum::getPhotos() { 
+list<picasaPhotoPtr> picasaAlbum::getPhotos() {
   atomFeed photoFeed( api );
   string URL = selfURL;
   URL.replace(selfURL.find("entry"), 5, "feed");
@@ -144,17 +144,18 @@ list<picasaPhoto *> picasaAlbum::getPhotos() {
   else 
     URL+="?kind=photo";
   photoFeed.loadFromURL(URL);
-  list<atomEntry *> entries = photoFeed.getEntries();
-  list<picasaPhoto *> photos;
-  for( list<atomEntry *>::iterator it=entries.begin();it !=entries.end();it++) {
-    photos.push_back(new picasaPhoto( **it ) );
-    delete *it;
+  list<atomEntryPtr> entries = photoFeed.getEntries();
+  list<picasaPhotoPtr> photos;
+  for( list<atomEntryPtr>::iterator it=entries.begin();it !=entries.end();it++) {
+    picasaPhotoPtr ph( new picasaPhoto( **it ) );
+    photos.push_back( ph );
   }
   return photos;
 }
 
-picasaPhoto *picasaAlbum::addPhoto( const std::string &fileName, const std::string &Summary, const std::string &Title ) throw( enum atomObj::exceptionType ) {
-  return new picasaPhoto( api, fileName, getShortTitle(), Summary, Title );
+picasaPhotoPtr picasaAlbum::addPhoto( const std::string &fileName, const std::string &Summary, const std::string &Title ) throw( enum atomObj::exceptionType ) {
+  picasaPhotoPtr ret(new picasaPhoto( api, fileName, getShortTitle(), Summary, Title ));
+  return ret;
 }
 
 

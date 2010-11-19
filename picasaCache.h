@@ -37,6 +37,11 @@ class picasaAlbum;
 class picasaPhoto;
 
 #include "atomEntry.h"
+#include "atomFeed.h"
+#include <boost/concept_check.hpp>
+#include "picasaAlbum.h"
+#include "picasaPhoto.h"
+
 
 struct cacheElement { 
   enum elementType { DIRECTORY, FILE }; 
@@ -56,7 +61,7 @@ struct cacheElement {
   std::time_t last_updated;
   
   std::string xmlRepresentation; // To reconstruct either picasaPhoto or picasaAlbum from...
-  atomEntry *picasaObj; // Constructed from the xmlRepresentation
+  atomEntryPtr picasaObj; // Constructed from the xmlRepresentation
   std::string cachedVersion; // The "checksum" of the object (ETag)
    
   /* only for DIRECTORY */
@@ -70,7 +75,7 @@ struct cacheElement {
 
   cacheElement(): name(""), size(0), world_readable(false), writeable(false),
 		  localChanges(false), last_updated(0), xmlRepresentation(""),
-		  picasaObj(NULL), cachedVersion(""), authKey(""), generated(false),
+		  cachedVersion(""), authKey(""), generated(false),
 		  cachePath(""), numOfOpenWr(0) {};
 		  
   const struct cacheElement &operator=(const struct cacheElement &e);
@@ -92,24 +97,22 @@ struct cacheElement {
 		      case cacheElement::DIRECTORY:
 			      ar & authKey;
 			      ar & contents;
-			      picasaObj = NULL;
 			      break;
 		      case cacheElement::FILE:
 			      ar & generated;
 			      ar & cachePath;
-			      picasaObj = NULL;
 			      break;
 	      }
 	    }
   /*
    * Takes ownership of album
    */
-  void fromAlbum( picasaAlbum* album );
+  void fromAlbum( picasaAlbumPtr album );
 
   /*
    * Takes ownership of photo
    */
-  void fromPhoto( picasaPhoto* photo );
+  void fromPhoto( picasaPhotoPtr photo );
   
   friend std::ostream &operator<<( std::ostream &out, const cacheElement &element );
 };

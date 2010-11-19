@@ -19,6 +19,7 @@
 #include <set>
 
 #include "picasaAlbum.h"
+#include "atomFeed.h"
 
 class picasaPhoto;
 class gAPI;
@@ -70,8 +71,8 @@ class picasaService {
 		picasaAlbum getAlbumByID( const std::string &albumID, const std::string &user = "", const std::string &authKey = "" ) throw ( enum exceptionType );
 		picasaAlbum getAlbumByName( const std::string &albumName, const std::string &user = "", const std::string &authKey = "" ) throw ( enum exceptionType );
 		picasaAlbum newAlbum( const std::string &Title, const std::string &Desc = "", const std::string &Location = "", picasaAlbum::accessType access = picasaAlbum::PUBLIC, bool comments = false, const std::string &keywords = "");
-		atomEntry *albumFromXML( const std::string &xml ) const;
-		atomEntry *photoFromXML( const std::string &xml ) const;
+		atomEntryPtr albumFromXML( const std::string &xml ) const;
+		atomEntryPtr photoFromXML( const std::string &xml ) const;
 
 		friend class picasaPhoto;
 
