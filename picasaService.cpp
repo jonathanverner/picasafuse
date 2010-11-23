@@ -20,8 +20,8 @@
 
 using namespace std;
 
-picasaService::picasaService( const std::string &email, const std::string &password ):
-	api( new gAPI( email, password, "picasaFUSE" ) )
+picasaService::picasaService( gAPI *API ):
+	api( API )
 {
 };
 

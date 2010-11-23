@@ -63,7 +63,7 @@ class gAPI {
 		std::string GET( const std::string &feedURL );
 		bool DOWNLOAD( const std::string &URL, const std::string &fileName );
 
-		gAPI( const std::string &user = "", const std::string &password = "", const std::string app = "gAPI" );
+		gAPI( const std::string &user = "", const std::string app = "gAPI" );
 		~gAPI();
 
 		bool login( const std::string &password, const std::string &user = "");

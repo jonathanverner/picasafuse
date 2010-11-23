@@ -14,6 +14,12 @@ SET(Boost_USE_STATIC_LIBS OFF)
 FIND_PACKAGE(Boost COMPONENTS thread filesystem system serialization REQUIRED)
 FIND_PACKAGE(ImageMagick COMPONENTS Magick++ REQUIRED)
 
+FIND_PACKAGE(LibDBus-c++-1 QUIET)
+IF (LibDBus-c++-1_FOUND)
+  ADD_DEFINITIONS(-DHAVE_DBUS)
+ELSE (${LibDBus-c++-1_FOUND)
+  MESSAGE(STATUS "libdbus-c++-1 not found, disabling kwallet support")
+ENDIF (LibDBus-c++-1_FOUND)
 
 
 #check_include_file("fuse.h" CMAKE_HAVE_FUSE_H)
@@ -36,6 +42,7 @@ INCLUDE_DIRECTORIES(
 	${CMAKE_CURRENT_SOURCE_DIR} 
 	${CMAKE_CURRENT_BINARY_DIR}
         ${ImageMagick_INCLUDE_DIRS}
+        ${LibDBus-c++-1_INCLUDE_DIRS}
 )
 
 
@@ -58,6 +65,7 @@ SET(PICASAAPI_SRC
 
 	
 SET(PICASAFUSE_SRC
+	config.cpp
 	picasaFS.cpp
 	picasaFUSE.cpp
 	picasaCache.cpp
@@ -128,6 +136,7 @@ TARGET_LINK_LIBRARIES(picasaFUSE
 	${CURL_LIBRARIES}
 	${FUSE_LIBRARY}
 	${ImageMagick_LIBRARIES}
+	${LibDBus-c++-1_LIBRARIES}
 )
 
 

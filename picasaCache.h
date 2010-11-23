@@ -41,6 +41,7 @@ class picasaPhoto;
 #include <boost/concept_check.hpp>
 #include "picasaAlbum.h"
 #include "picasaPhoto.h"
+#include "config.h"
 
 
 struct cacheElement { 
@@ -126,7 +127,7 @@ class picasaCache {
 
 
 	public:
-		picasaCache( const std::string &user = "", const std::string &password = "", const std::string &cache = "/tmp/.picasaFUSE", int updateInterval = 600, long maxPix = 0 );
+		picasaCache( picasaConfig &cf );
 		~picasaCache();
 
 		bool isDir( const pathParser &p );
@@ -156,6 +157,7 @@ class picasaCache {
 
 
 	private:
+	        picasaConfig conf;
 	  
 		long numOfPixels;
 		long maxJobThreads;

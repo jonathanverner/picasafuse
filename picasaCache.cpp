@@ -249,13 +249,19 @@ const string help_text = "PicasaFUSE help"
 			 "      rm .control/update_queue 		... clears the update queue"
 			 "      rm .control/priority_update_queue 	... clears the priority update queue";
 
-picasaCache::picasaCache( const string& user, const string& pass, const string& ch, int UpdateInterval, long maxPixels ):
-	api( new gAPI( user, pass, "picasaFUSE" ) ),
-	picasa( new picasaService( user, pass ) ),
-	work_to_do(false), kill_thread(false), cacheDir( ch ), updateInterval(UpdateInterval),
-	numOfPixels( maxPixels ), maxJobThreads( 10 ), haveNetworkConnection(true)
+picasaCache::picasaCache( picasaConfig &cf ):
+	conf(cf),
+	work_to_do(false), kill_thread(false), cacheDir( cf.getCacheDir() ), updateInterval(cf.getUpdateInterval()),
+	numOfPixels( cf.getMaxPixels() ), maxJobThreads( 10 ), haveNetworkConnection(true)
 {
-  if ( updateInterval < 1 ) updateInterval = 600;
+  api = new gAPI( cf.getUser(), "picasaFUSE" );
+  if ( cf.getOffline() ) {
+    haveNetworkConnection = false;
+  } else {
+    api->login( cf.getPass() );
+  }
+  picasa = new picasaService( api );
+  
   mkdir( cacheDir.c_str(), 0755 );
   string cacheFName = cacheDir + "/.cache", err;
   if ( boost::filesystem::exists( cacheFName ) ) { 
@@ -405,6 +411,7 @@ void picasaCache::updateStatsFile() {
   if ( haveNetworkConnection ) os <<"online";
   else os << "offline";
   os<<std::endl;
+  os << conf;
   e.cachePath=os.str();
   e.size = e.cachePath.size();
   putIntoCache( statsPath, e );

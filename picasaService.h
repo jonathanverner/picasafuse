@@ -66,7 +66,7 @@ class picasaService {
 		enum exceptionType { GENERAL_ERROR };
 
 	public:
-		picasaService( const std::string & email = "", const std::string &password = "" );
+		picasaService( gAPI *API );
 		std::set<picasaAlbum> albumList( const std::string &user = "" ) throw ( enum exceptionType );
 		picasaAlbum getAlbumByID( const std::string &albumID, const std::string &user = "", const std::string &authKey = "" ) throw ( enum exceptionType );
 		picasaAlbum getAlbumByName( const std::string &albumName, const std::string &user = "", const std::string &authKey = "" ) throw ( enum exceptionType );

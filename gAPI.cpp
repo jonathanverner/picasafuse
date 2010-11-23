@@ -59,13 +59,13 @@ bool gAPI::haveAuthKey( const std::string &URL ) {
 }
 
 
-gAPI::gAPI( const string &user, const string &password, const string app ) : 
+gAPI::gAPI( const string &user, const string app ) :
 	userName( user ), appName(app), authToken("")
 {
-  login( password );
 }
 
-bool gAPI::login( const string &password, const string &user ) { 
+bool gAPI::login( const string &password, const string &user ) {
+  if ( user.compare("") == 0 ) return false;
   if ( password.compare("") == 0 ) return false;
   if ( user.compare("") != 0 ) userName = user;
   getAuthToken( password );
