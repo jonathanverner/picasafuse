@@ -38,7 +38,6 @@ class picasaPhoto;
 
 #include "atomEntry.h"
 #include "atomFeed.h"
-#include <boost/concept_check.hpp>
 #include "picasaAlbum.h"
 #include "picasaPhoto.h"
 #include "config.h"
