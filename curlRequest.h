@@ -26,10 +26,12 @@
 class curlRequest { 
 	public:
 		enum requestType { GET, POST, PUT, DELETE, MULTIPART_POST };
-		enum curlException { NO_NETWORK_CONNECTION };
-
+		enum exceptionType { NO_NETWORK_CONNECTION };
+		
+		static int handles_count;
 	private:
 		static std::map<boost::thread::id,void*> curl_handles;
+
 		enum requestType request;
 		std::string URL, body, postFields, outFile, inFile;
 		std::list< std::string > headers;
@@ -51,12 +53,13 @@ class curlRequest {
 		void setOutFile( const std::string &fileName ) { outFile = fileName; };
 		void setInFile( const std::string &fileName, const std::string contentType ){ inFile=fileName; headers.push_back("Content-Type: "+contentType);};
 
-		bool perform();
+		bool perform() throw (enum exceptionType);
 		
-		bool networkUP() const { return !network_down; };
+		bool checkNetworkConnection();
 
-		std::string getResponse() { return response; }
-		int getStatus() { return status; };
+		std::string getResponse() const { return response; }
+		int getStatus() const { return status; };
+		int getHandlesCount() const { return handles_count; };
 };
 
 

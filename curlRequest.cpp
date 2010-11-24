@@ -22,6 +22,7 @@
 using namespace std;
 
 map<boost::thread::id, void*> curlRequest::curl_handles;
+int curlRequest::handles_count = 0;
 
 
 static size_t responseData(void *ptr, size_t size, size_t nmemb, void *data ) { 
@@ -64,6 +65,7 @@ void *curlRequest::getThreadCurlHandle() {
   boost::thread::id tID = boost::this_thread::get_id();
   if ( curl_handles.find( tID ) == curl_handles.end() ) { 
     ret = curl_easy_init();
+    handles_count++;
     if ( ret )
       curl_handles[tID] = ret;
     return ret;
@@ -72,7 +74,22 @@ void *curlRequest::getThreadCurlHandle() {
   }
 }
 
-bool curlRequest::perform() {
+bool curlRequest::checkNetworkConnection() {
+  string temp;
+  void *curl = getThreadCurlHandle();
+  curl_easy_reset( curl );
+  curl_easy_setopt( curl, CURLOPT_URL, "http://www.google.com" );
+  curl_easy_setopt( curl, CURLOPT_WRITEFUNCTION, responseData );
+  curl_easy_setopt( curl, CURLOPT_WRITEDATA, &temp );
+  CURLcode cd = curl_easy_perform(curl);
+  if ( cd ) {
+    cerr << "networkUP(): NO NETWORK CONNECTION (" << cd <<")\n";
+    network_down = true;
+  } else network_down = false;
+  return network_down;
+}
+
+bool curlRequest::perform() throw (enum exceptionType) {
   cerr<<"Performing request for " << URL << endl;
   void *curl = getThreadCurlHandle();
   if ( ! getThreadCurlHandle() ) { 
@@ -110,6 +127,7 @@ bool curlRequest::perform() {
   bodyData.size = body.size();
   bodyData.pos=0;
   string method="DELETE";
+  
 
   switch( request ) { 
 	  case GET:
@@ -159,7 +177,15 @@ bool curlRequest::perform() {
       if ( infl ) fclose( infl );
       curl_slist_free_all( curlHDRS );
       cerr << "getFeed() Error: CURL ERROR IN OPERATION(" <<cd <<") \n";
-      if ( cd == CURLE_COULDNT_CONNECT || cd == CURLE_COULDNT_RESOLVE_HOST ) network_down = true;
+      switch ( cd ) {
+	case CURLE_COULDNT_CONNECT:
+	case CURLE_COULDNT_RESOLVE_HOST:
+	case CURLE_OPERATION_TIMEDOUT:
+	case CURLE_SEND_ERROR:
+	case CURLE_RECV_ERROR:
+	  network_down = true;
+	  throw NO_NETWORK_CONNECTION;
+      }
       return false;
   }
   network_down=false;

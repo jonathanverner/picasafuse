@@ -23,6 +23,7 @@
 #include "fusexx.hpp"
 
 #include "convert.h"
+#include "curlRequest.h"
 
 
 #include <boost/bind.hpp>
@@ -43,10 +44,13 @@
 #include <sys/types.h>
 #include <sys/time.h>
 
+
 #include <string.h>
 
 
 using namespace std;
+
+
 
 string picasaCache::exceptionString( exceptionType ex ) {
   string ret;
@@ -200,54 +204,54 @@ const pathParser picasaCache::updateQueuePath(".control/update_queue");
 const pathParser picasaCache::priorityQueuePath(".control/priority_queue");
 const pathParser picasaCache::localChangesQueuePath(".control/local_changes_queue");
 
-const string help_text = "PicasaFUSE help"
+const string help_text = "PicasaFUSE help\n"
+			 "\n"
+			 " The .control directory\n"
+			 "   help			... this file\n"
+			 "   log			... the log file\n"
+			 "   status			... a file containing some statistics about the filesystem\n"
+			 "   auth_keys			... a file containing album name = authkey pairs (for backup purposes)\n"
+			 "   update_queue		... files waiting to be updated\n"
+			 "   priority_update_queue	... files which will be updated with precedence (usually photos\n"
+			 "				    which some application tried to read but which were not yet downloaded\n"
+			 "   local_changes_queue	... albums/photos with local changes waiting to be updated on the server\n"
+			 "\n"
+			 " How to achieve ...\n"
+			 "   Q: How to cache some users albums?\n"
+			 "   A: mkdir his username in the base directory of the mounted filesystem\n"
+			 "\n"
+			 "   Q: How to stop caching some users albums?\n"
+			 "   A: rmdir his username in the base directory of the mounted filesystem\n"
+			 "\n"
+			 "   Q: How to cache an unlisted album of some user?\n"
+			 "   A: cd album_name?authkey=Gv12312asdafsdf in the user subdirectory, and replace 'Gv12312asdafsdf'\n"
+			 "      by the authkey of the album (you can find it from the link for the album\n"
+			 "\n"
+			 "   Q: How to create a new album?\n"
+			 "   A: Go to the directory corresponding to your username and do mkdir 'Album name'\n"
+			 "      (the filesystem must have been mounted with the username option)\n"
+			 "\n"
+			 "   Q: How to upload a photo to an album?\n"
+			 "   A: Simply copy it to the respective directory\n"
+			 "      (the filesystem must have been mounted with the username option)\n"
+			 "\n"
+			 "   Q: How to delete a photo/album?\n"
+			 "   A: Simply rmdir/rm it.\n"
+			 "      (the filesystem must have been mounted with the username option)\n"
+			 "\n"
+			 "   Q: How to disable networking?\n"
+			 "   A: touch .control/offline\n"
+			 "      The filesystem will act as a local cache and will disallow some operations\n"
+			 "      (deleting photos/albums)\n"
 			 ""
-			 " The .control directory"
-			 "   help			... this file"
-			 "   log			... the log file"
-			 "   status			... a file containing some statistics about the filesystem"
-			 "   auth_keys			... a file containing album name = authkey pairs (for backup purposes)"
-			 "   update_queue		... files waiting to be updated"
-			 "   priority_update_queue	... files which will be updated with precedence (usually photos"
-			 "				    which some application tried to read but which were not yet downloaded"
-			 "   local_changes_queue	... albums/photos with local changes waiting to be updated on the server"
-			 ""
-			 " How to achieve ..."
-			 "   Q: How to cache some users albums?"
-			 "   A: mkdir his username in the base directory of the mounted filesystem"
-			 ""
-			 "   Q: How to stop caching some users albums?"
-			 "   A: rmdir his username in the base directory of the mounted filesystem"
-			 ""
-			 "   Q: How to cache an unlisted album of some user?"
-			 "   A: cd album_name?authkey=Gv12312asdafsdf in the user subdirectory, and replace 'Gv12312asdafsdf'"
-			 "      by the authkey of the album (you can find it from the link for the album"
-			 ""
-			 "   Q: How to create a new album?"
-			 "   A: Go to the directory corresponding to your username and do mkdir 'Album name'"
-			 "      (the filesystem must have been mounted with the username option)"
-			 ""
-			 "   Q: How to upload a photo to an album?"
-			 "   A: Simply copy it to the respective directory "
-			 "      (the filesystem must have been mounted with the username option)"
-			 ""
-			 "   Q: How to delete a photo/album?"
-			 "   A: Simply rmdir/rm it."
-			 "      (the filesystem must have been mounted with the username option)"
-			 ""
-			 "   Q: How to disable networking?"
-			 "   A: touch .control/offline"
-			 "      The filesystem will act as a local cache and will disallow some operations"
-			 "      (deleting photos/albums)"
-			 ""
-			 "   Q: How to enable networking?"
-			 "   A: touch .control/online"
-			 ""
-			 "   Advanced operations..."
-			 ""
-			 "      rm .control/log				... clears the logfile"
-			 "      rm .control/update_queue 		... clears the update queue"
-			 "      rm .control/priority_update_queue 	... clears the priority update queue";
+			 "   Q: How to enable networking?\n"
+			 "   A: touch .control/online\n"
+			 "\n"
+			 "   Advanced operations...\n"
+			 "\n"
+			 "      rm .control/log				... clears the logfile\n"
+			 "      rm .control/update_queue 		... clears the update queue\n"
+			 "      rm .control/priority_update_queue 	... clears the priority update queue\n";
 
 picasaCache::picasaCache( picasaConfig &cf ):
 	conf(cf),
@@ -258,7 +262,11 @@ picasaCache::picasaCache( picasaConfig &cf ):
   if ( cf.getOffline() ) {
     haveNetworkConnection = false;
   } else {
-    api->login( cf.getPass() );
+    try {
+      api->login( cf.getPass() );
+    } catch ( gAPI::exceptionType ex ) {
+      if ( ex == gAPI::NO_NETWORK_CONNECTION ) haveNetworkConnection = false;
+    }
   }
   picasa = new picasaService( api );
   
@@ -284,7 +292,15 @@ picasaCache::picasaCache( picasaConfig &cf ):
 }
 
 bool picasaCache::goOnline() {
-  haveNetworkConnection = true;
+  haveNetworkConnection = api->checkNetworkConnection();
+  if ( haveNetworkConnection && ! api->loggedIn() ) {
+    try {
+      api->login( conf.getPass() );
+    } catch ( gAPI::exceptionType ex ) {
+      if ( ex == gAPI::NO_NETWORK_CONNECTION ) haveNetworkConnection = false;
+    }
+  }
+  return haveNetworkConnection;
 }
 
 string picasaCache::toString() { 
@@ -404,13 +420,16 @@ void picasaCache::updateStatsFile() {
   if ( ! getFromCache( statsPath, e ) ) return;
   stringstream os;
   boost::mutex::scoped_lock lu(update_queue_mutex), lp(priority_update_queue_mutex),lc(local_change_queue_mutex);
-  os << "Update Queue size:" << update_queue.size() << std::endl; lu.unlock();
-  os << "Priority Queue size:" << priority_update_queue.size() << std::endl; lp.unlock();
-  os << "Local Changes Queue size:" << local_change_queue.size() << std::endl; lc.unlock();
+  os << *api;
+  os << "Cache Elements:" << getCacheSize() << endl;
+  os << "Update Queue size:" << update_queue.size() << endl; lu.unlock();
+  os << "Priority Queue size:" << priority_update_queue.size() << endl; lp.unlock();
+  os << "Local Changes Queue size:" << local_change_queue.size() << endl; lc.unlock();
   os << "Network connection:";
   if ( haveNetworkConnection ) os <<"online";
   else os << "offline";
   os<<std::endl;
+  os << "CURL handles count:"<<curlRequest::handles_count << endl;
   os << conf;
   e.cachePath=os.str();
   e.size = e.cachePath.size();
@@ -540,6 +559,11 @@ void picasaCache::newAlbum( const pathParser A ) throw ( enum picasaCache::excep
   if ( haveNetworkConnection ) {
     try {
       doUpdate( A );
+    } catch ( gAPI::exceptionType ex ) {
+      localChange(A);
+      if ( ex == gAPI::NO_NETWORK_CONNECTION ) {
+	haveNetworkConnection = false;
+      }
     } catch (...) {
       localChange(A);
     }
@@ -561,7 +585,14 @@ void picasaCache::pushAlbum( const pathParser A ) throw ( enum picasaCache::exce
   
   picasaAlbumPtr album = boost::dynamic_pointer_cast<picasaAlbum,atomEntry>(c.picasaObj);
   if ( ! haveNetworkConnection ) throw NO_NETWORK_CONNECTION;
-  if ( ! album->PUSH_CHANGES() ) throw OPERATION_FAILED;
+  try {
+    if ( ! album->PUSH_CHANGES() ) throw OPERATION_FAILED;
+  } catch ( gAPI::exceptionType ex ) {
+    if ( ex == gAPI::NO_NETWORK_CONNECTION ) {
+      haveNetworkConnection = false;
+      throw NO_NETWORK_CONNECTION;
+    }
+  }
   c.fromAlbum( album );
   c.localChanges = false;
   putIntoCache( A, c );
@@ -575,7 +606,7 @@ void picasaCache::updateAlbum( const pathParser A ) throw ( enum picasaCache::ex
   cacheElement c, pElement;
   string pName;
   log( "picasaCache::updateAlbum("+A.getFullName()+"):\n" );
-
+  try {
   if ( ! getFromCache( A, c ) ) {
     int authKeyPos = A.getAlbum().find( "?authkey=" );
     if ( authKeyPos != string::npos ) { // Possibly an unlisted album, need not be in the cache
@@ -622,6 +653,7 @@ void picasaCache::updateAlbum( const pathParser A ) throw ( enum picasaCache::ex
     removeFromCache( A );
     throw OBJECT_DOES_NOT_EXIST;
   }
+  
   c.fromAlbum( album );
   
   // If albumName changed, update the parent accordingly
@@ -632,7 +664,7 @@ void picasaCache::updateAlbum( const pathParser A ) throw ( enum picasaCache::ex
     u.contents.insert( c.name );
     putIntoCache( A.chop(), u );
   }
-  
+
   list<picasaPhotoPtr> photos = album->getPhotos();
   
   set<string> photoTitles;
@@ -674,13 +706,19 @@ void picasaCache::updateAlbum( const pathParser A ) throw ( enum picasaCache::ex
   }
   c.last_updated = time( NULL );
   putIntoCache( A, c );
+  }  catch( gAPI::exceptionType ex ) {
+    if ( ex == gAPI::NO_NETWORK_CONNECTION ) {
+      haveNetworkConnection = false;
+      throw NO_NETWORK_CONNECTION;
+    }   else throw OPERATION_FAILED;
+  }
 }
 
 
 void picasaCache::pushImage( const pathParser P ) throw ( enum picasaCache::exceptionType ) { 
   cacheElement c;
   log( "picasaCache::pushImage(" + P.getFullName() + "):\n" );
-
+  try {
   if ( ! getFromCache( P, c ) ) {
     log( "picasaCache::pushImage("+P.getFullName()+"): ERROR: Object not present in cache, throwing...\n" );
     throw OBJECT_DOES_NOT_EXIST;
@@ -741,6 +779,12 @@ void picasaCache::pushImage( const pathParser P ) throw ( enum picasaCache::exce
     putIntoCache( P, c );
     return;
   }
+  } catch( gAPI::exceptionType ex ) {
+    if ( ex == gAPI::NO_NETWORK_CONNECTION ) {
+      haveNetworkConnection = false;
+      throw NO_NETWORK_CONNECTION;
+    } else throw OPERATION_FAILED;
+  }
 }
 
 /*
@@ -750,6 +794,8 @@ void picasaCache::updateImage( const pathParser P ) throw ( enum picasaCache::ex
   cacheElement c;
 
   log( "picasaCache::updateImage("+P.getFullName()+"):\n" );
+
+  try {
   
   if ( ! getFromCache( P, c ) ) {
     log( "  ERROR: Object not present in cache, throwing ... \n" );
@@ -803,6 +849,12 @@ void picasaCache::updateImage( const pathParser P ) throw ( enum picasaCache::ex
   }
   c.last_updated = time( NULL );
   putIntoCache( P, c );
+  } catch( gAPI::exceptionType ex ) {
+    if ( ex == gAPI::NO_NETWORK_CONNECTION ) {
+      haveNetworkConnection = false;
+      throw NO_NETWORK_CONNECTION;
+    } else throw OPERATION_FAILED;
+  }
 }
 
 void picasaCache::updateUser ( const pathParser U ) throw ( enum picasaCache::exceptionType ) { 
@@ -821,6 +873,11 @@ void picasaCache::updateUser ( const pathParser U ) throw ( enum picasaCache::ex
     //  do not allow creation of users)
     removeFromCache( U );
     throw OBJECT_DOES_NOT_EXIST;
+  } catch( gAPI::exceptionType ex ) {
+    if ( ex == gAPI::NO_NETWORK_CONNECTION ) {
+      haveNetworkConnection = false;
+      throw NO_NETWORK_CONNECTION;
+    } else throw OPERATION_FAILED;
   }
 
 
@@ -917,7 +974,6 @@ void picasaCache::doUpdate( const pathParser p ) throw ( enum picasaCache::excep
   }
 
   if ( ! haveNetworkConnection ) throw NO_NETWORK_CONNECTION;
-  
   /* Object is already present in the cache */
   if ( getFromCache( p, c ) ) {
     
@@ -1066,13 +1122,19 @@ void picasaCache::sync() {
       pushChange( p );
     } catch ( enum picasaCache::exceptionType ex ) { 
       log( "fsync: Exception ("+exceptionString( ex ) + ") caught while doing update of "+p.getFullName() + "\n");
-      switch( ex ) { 
+      switch( ex ) {
+	case NO_NETWORK_CONNECTION:
 	case OPERATION_FAILED:
 	  failed_list.push_back( p );
       }
     }
   }
   local_change_queue = failed_list;
+}
+
+size_t picasaCache::getCacheSize() {
+  boost::mutex::scoped_lock l(cache_mutex);
+  return cache.size();
 }
 
 bool picasaCache::getFromCache( const pathParser &p, struct cacheElement &e ) {
@@ -1281,6 +1343,11 @@ void picasaCache::unlink( const pathParser &p ) throw ( enum picasaCache::except
     if ( ! haveNetworkConnection ) throw NO_NETWORK_CONNECTION;
     try {
       photo->DELETE();
+    } catch( gAPI::exceptionType ex ) {
+      if ( ex == gAPI::NO_NETWORK_CONNECTION ) {
+	haveNetworkConnection = false;
+	throw NO_NETWORK_CONNECTION;
+      } else throw OPERATION_FAILED;
     } catch (...) {
       throw OPERATION_FAILED;
     }
@@ -1311,6 +1378,11 @@ void picasaCache::rmdir( const pathParser &p ) throw ( enum picasaCache::excepti
       if ( ! haveNetworkConnection ) throw NO_NETWORK_CONNECTION;
       try {
 	album->DELETE();
+      } catch( gAPI::exceptionType ex ) {
+	if ( ex == gAPI::NO_NETWORK_CONNECTION ) {
+	  haveNetworkConnection = false;
+	  throw NO_NETWORK_CONNECTION;
+	} else throw OPERATION_FAILED;
       } catch (...) {
 	throw OPERATION_FAILED;
       }

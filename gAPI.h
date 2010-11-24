@@ -17,9 +17,13 @@
 #include <string>
 #include <set>
 #include <list>
+#include <iosfwd>
 
 
-class gAPI { 
+class gAPI {
+	public:
+		enum exceptionType { GENERAL_ERROR, NO_NETWORK_CONNECTION };
+
 	private:
 		std::string userName, authToken, appName;
 
@@ -35,8 +39,8 @@ class gAPI {
 				      CONFLICT = 409,
 				      INTERNAL_SEVER_ERROR = 500 };
 
-		bool haveToken();
-		void getAuthToken( const std::string &password );
+		bool haveToken() const;
+		void getAuthToken( const std::string &password ) throw ( enum exceptionType );
 
 
 
@@ -49,28 +53,29 @@ class gAPI {
 		static std::string extractVal( const std::string response, const std::string key );
 
 
-		std::string DELETE( const std::string &feedURL );
-		std::string PUT( const std::string &feedURL, const std::string &data );
-		std::string POST( const std::string &feedURL, const std::string &data );
-		std::string POST_FILE( const std::string &feedURL, const std::string &fileName, const std::string &contentType, std::list< std::string > &headers, bool methodPOST=true );
-		std::string PUT_FILE( const std::string &feedURL, const std::string &fileName, const std::string &contentType, std::list< std::string > &headers );
-	public:
-		enum exceptionType { GENERAL_ERROR };
-
+		std::string DELETE( const std::string &feedURL ) throw ( enum exceptionType );
+		std::string PUT( const std::string &feedURL, const std::string &data ) throw ( enum exceptionType );
+		std::string POST( const std::string &feedURL, const std::string &data ) throw ( enum exceptionType );
+		std::string POST_FILE( const std::string &feedURL, const std::string &fileName, const std::string &contentType, std::list< std::string > &headers, bool methodPOST=true ) throw ( enum exceptionType );
+		std::string PUT_FILE( const std::string &feedURL, const std::string &fileName, const std::string &contentType, std::list< std::string > &headers ) throw ( enum exceptionType );
 
 	public:
 
-		std::string GET( const std::string &feedURL );
-		bool DOWNLOAD( const std::string &URL, const std::string &fileName );
+		std::string GET( const std::string &feedURL ) throw ( enum exceptionType );
+		bool DOWNLOAD( const std::string &URL, const std::string &fileName ) throw ( enum exceptionType );
 
 		gAPI( const std::string &user = "", const std::string app = "gAPI" );
 		~gAPI();
 
-		bool login( const std::string &password, const std::string &user = "");
-		bool loggedIn() { return haveToken(); };
+		bool login( const std::string &password, const std::string &user = "") throw ( enum exceptionType );
+		bool loggedIn() const { return haveToken(); };
 		std::string getUser() const;
 
 		std::set<std::string> albumList( const std::string &user = "" ) throw ( enum exceptionType );
+
+		bool checkNetworkConnection();
+
+		friend std::ostream &operator<<(std::ostream &out, const gAPI &api);
 
 		friend class picasaAlbum;
 		friend class picasaPhoto;

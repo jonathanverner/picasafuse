@@ -22,11 +22,12 @@
 #include "ticpp/ticpp.h"
 
 #include <string>
+#include <iostream>
 
 using namespace std;
 
 
-bool gAPI::haveToken() { 
+bool gAPI::haveToken() const { 
   return (authToken.compare("") != 0);
 }
 
@@ -64,8 +65,8 @@ gAPI::gAPI( const string &user, const string app ) :
 {
 }
 
-bool gAPI::login( const string &password, const string &user ) {
-  if ( user.compare("") == 0 ) return false;
+bool gAPI::login( const string &password, const string &user ) throw ( enum exceptionType ) { 
+  if ( user.compare("") == 0 && userName.compare("") == 0 ) return false;
   if ( password.compare("") == 0 ) return false;
   if ( user.compare("") != 0 ) userName = user;
   getAuthToken( password );
@@ -87,25 +88,41 @@ string gAPI::extractVal( const string response, const string key ) {
   return response.substr( tokenStart, tokenEnd-tokenStart );
 }
 
-void gAPI::getAuthToken(const string& password) { 
+bool gAPI::checkNetworkConnection() {
+  curlRequest request;
+  return request.checkNetworkConnection();
+}
+
+
+void gAPI::getAuthToken(const string& password) throw ( enum exceptionType ) {
   curlRequest request;
   request.setURL( "https://www.google.com/accounts/ClientLogin" );
   request.setBody("Email="+userName+"&Passwd="+password+"&accountType=GOOGLE&source="+appName+"&service=lh2", "application/x-www-form-urlencoded");
   request.setType( curlRequest::POST );
-  request.perform();
+  try {
+    request.perform();
+  } catch (curlRequest::exceptionType ex) {
+    if ( ex == curlRequest::NO_NETWORK_CONNECTION ) throw NO_NETWORK_CONNECTION;
+    else throw GENERAL_ERROR;
+  }
   if ( request.getStatus() != 200 ) {
     cerr << "gAPI::getAuthToken: "<< extractVal( request.getResponse(), "Error" ) << " (response status "<<request.getStatus() << ")\n";
   } else authToken = extractVal( request.getResponse(), "Auth" );
 }
 
 
-bool gAPI::DOWNLOAD( const std::string &URL, const std::string &fileName ) { 
+bool gAPI::DOWNLOAD( const std::string &URL, const std::string &fileName ) throw ( enum exceptionType ) { 
   curlRequest request;
   if ( haveToken() )  request.addHeader( "Authorization: GoogleLogin auth="+authToken );
   request.setType( curlRequest::GET );
   request.setURL( URL );
   request.setOutFile( fileName );
-  if ( ! request.perform() ) return false;
+  try {
+    if ( ! request.perform() ) return false;
+  } catch ( curlRequest::exceptionType ex ) {
+    if ( ex == curlRequest::NO_NETWORK_CONNECTION ) throw NO_NETWORK_CONNECTION;
+    else throw GENERAL_ERROR;
+  }    
   if ( request.getStatus() != 200 ) {
     cerr << "gAPI::DOWNLOAD: "<<request.getResponse() << "(response status "<<request.getStatus() << ")\n";
     return false;
@@ -114,16 +131,21 @@ bool gAPI::DOWNLOAD( const std::string &URL, const std::string &fileName ) {
 }
 
 
-string gAPI::GET( const string &URL ) { 
+string gAPI::GET( const std::string& feedURL ) throw (enum exceptionType) {
   curlRequest request;
   if ( haveToken() )  request.addHeader( "Authorization: GoogleLogin auth="+authToken );
   request.setType( curlRequest::GET );
-  request.setURL( URL );
-  request.perform();
+  request.setURL( feedURL );
+  try {
+    request.perform();
+  } catch ( curlRequest::exceptionType ex ) {
+    if ( ex == curlRequest::NO_NETWORK_CONNECTION ) throw NO_NETWORK_CONNECTION;
+    else throw GENERAL_ERROR;
+  }
   if ( request.getStatus() != OK && request.getStatus() != CREATED && request.getStatus() != NOT_MODIFIED ) {
     cerr << "gAPI::GET: ERROR"<<endl;
     cerr << "   Response status: "<<request.getStatus() << endl;
-    cerr << "   Offending URL: " << URL << endl;
+    cerr << "   Offending URL: " << feedURL << endl;
     cerr << "   Response---------------------" <<endl;
     cerr << request.getResponse()<<endl;
     return "";
@@ -131,25 +153,35 @@ string gAPI::GET( const string &URL ) {
   return request.getResponse();
 }
 
-string gAPI::DELETE( const string &URL ) { 
+string gAPI::DELETE( const string &URL ) throw (enum exceptionType) {
   curlRequest request;
   if ( haveToken() )  request.addHeader( "Authorization: GoogleLogin auth="+authToken );
   request.addHeader("If-Match: *");
   request.setType( curlRequest::DELETE );
   request.setURL( URL );
-  request.perform();
+  try {
+    request.perform();
+  } catch ( curlRequest::exceptionType ex ) {
+    if ( ex == curlRequest::NO_NETWORK_CONNECTION ) throw NO_NETWORK_CONNECTION;
+    else throw GENERAL_ERROR;
+  }
   return request.getResponse();
 }
 
 
-string gAPI::PUT( const string &URL, const string &data ) { 
+string gAPI::PUT( const string &URL, const string &data ) throw (enum exceptionType) {
   curlRequest request;
   if ( haveToken() )  request.addHeader( "Authorization: GoogleLogin auth="+authToken );
   request.addHeader("If-Match: *");
   request.setType( curlRequest::PUT );
   request.setURL( URL );
   request.setBody( data, "application/atom+xml" );
-  request.perform();
+  try {
+    request.perform();
+  } catch ( curlRequest::exceptionType ex ) {
+    if ( ex == curlRequest::NO_NETWORK_CONNECTION ) throw NO_NETWORK_CONNECTION;
+    else throw GENERAL_ERROR;
+  }
   if ( request.getStatus() != OK && request.getStatus() != CREATED && request.getStatus() != NOT_MODIFIED ) { 
     cerr << "gAPI::PUT: ERROR"<<endl;
     cerr << "   Response status: "<<request.getStatus() << endl;
@@ -164,13 +196,18 @@ string gAPI::PUT( const string &URL, const string &data ) {
   return request.getResponse();
 }
 
-string gAPI::POST( const string &URL, const string &data ) { 
+string gAPI::POST( const string &URL, const string &data ) throw (enum exceptionType) {
   curlRequest request;
   if ( haveToken() )  request.addHeader( "Authorization: GoogleLogin auth="+authToken );
   request.setType( curlRequest::POST );
   request.setURL( URL );
   request.setBody( data, "application/atom+xml" );
-  request.perform();
+  try {
+    request.perform();
+  } catch ( curlRequest::exceptionType ex ) {
+    if ( ex == curlRequest::NO_NETWORK_CONNECTION ) throw NO_NETWORK_CONNECTION;
+    else throw GENERAL_ERROR;
+  }
   if ( request.getStatus() != 200 && request.getStatus() != 201 ) { 
     cerr << "gAPI::PUT: "<<request.getResponse() << "(response status "<<request.getStatus() << ")\n";
     return "";
@@ -178,7 +215,7 @@ string gAPI::POST( const string &URL, const string &data ) {
   return request.getResponse();
 }
 
-string gAPI::POST_FILE( const string &URL, const string &file, const string &contentType, list<string> &headers, bool methodPOST ) { 
+string gAPI::POST_FILE( const string &URL, const string &file, const string &contentType, list<string> &headers, bool methodPOST ) throw (enum exceptionType) {
  curlRequest request;
   if ( haveToken() )  request.addHeader( "Authorization: GoogleLogin auth="+authToken );
   if ( methodPOST ) request.setType( curlRequest::POST );
@@ -190,7 +227,12 @@ string gAPI::POST_FILE( const string &URL, const string &file, const string &con
   request.setInFile( file, contentType );
   for( list<string>::iterator hdr = headers.begin(); hdr != headers.end(); hdr++ )
     request.addHeader( *hdr );
-  request.perform();
+  try {
+    request.perform();
+  } catch ( curlRequest::exceptionType ex ) {
+    if ( ex == curlRequest::NO_NETWORK_CONNECTION ) throw NO_NETWORK_CONNECTION;
+    else throw GENERAL_ERROR;
+  }
   if ( request.getStatus() != 200 && request.getStatus() != 201 ) { 
     cerr << "gAPI::POST_FILE: "<<request.getResponse() << " (response status "<<request.getStatus() << ")\n";
     cerr << "gAPI::POST_FILE to " << URL << " of " << file << " ("<<contentType<<")\n";
@@ -199,7 +241,7 @@ string gAPI::POST_FILE( const string &URL, const string &file, const string &con
   return request.getResponse();
 }
 
-string gAPI::PUT_FILE( const string &feedURL, const string &fileName, const string &contentType, list< string > &headers ) {
+string gAPI::PUT_FILE( const string &feedURL, const string &fileName, const string &contentType, list< string > &headers ) throw (enum exceptionType) {
   return POST_FILE( feedURL, fileName, contentType, headers, false );
 }
 
@@ -236,4 +278,11 @@ int gAPI::string2int( const string &number ) {
 }
 
 
-
+ostream &operator<<(ostream &out, const gAPI &api) {
+  out << "User name:" << api.getUser() << endl;
+  out << "Logged in:";
+  if ( api.loggedIn() ) {
+    out << "true" << endl;
+    out << "AuthToken:" << api.authToken << endl;
+  } else out << "false" << endl;
+}

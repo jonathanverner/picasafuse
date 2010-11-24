@@ -208,6 +208,7 @@ class picasaCache {
 		bool insertSpecialFile( const pathParser &p, bool world_readable = true, bool world_writeable = false );
 		bool getFromCache( const pathParser &p, struct cacheElement &e );
 		void putIntoCache( const pathParser &p, const struct cacheElement &e );
+		size_t getCacheSize();
 		void removeFromCache( const pathParser &p );
 		// WARNING: Need to acquire a lock on cache_mutex and update_queue_mutex before calling this function.
 		//          This function does not acquire any locks.
