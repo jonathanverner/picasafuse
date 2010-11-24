@@ -85,8 +85,11 @@ bool curlRequest::checkNetworkConnection() {
   if ( cd ) {
     cerr << "networkUP(): NO NETWORK CONNECTION (" << cd <<")\n";
     network_down = true;
-  } else network_down = false;
-  return network_down;
+  } else {
+    cerr << "networkUP(): FOUND NETWORK CONNECTION (" << cd <<")\n";
+    network_down = false;
+  }
+  return (! network_down);
 }
 
 bool curlRequest::perform() throw (enum exceptionType) {
