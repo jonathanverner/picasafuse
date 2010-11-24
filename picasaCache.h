@@ -17,6 +17,7 @@
 #include <time.h>
 
 #include <string>
+#include <sstream>
 #include <list>
 #include <map>
 #include <set>
@@ -135,7 +136,7 @@ class picasaCache {
 		void needPath( const pathParser &p );
 
 		bool isOffline() const { return ( ! haveNetworkConnection ); };
-		bool goOffLine() { haveNetworkConnection = false; };
+		bool goOffLine(); 
 		bool goOnline();
 
 		std::set<std::string> ls( const pathParser &p ) throw (enum exceptionType);
@@ -181,6 +182,7 @@ class picasaCache {
 		void updateLCQueueFile();
                 void updateUQueueFile();
                 void updatePQueueFile();
+		void updateLogFile();
 		void updateSpecial( const pathParser p );
 		void pleaseUpdate( const pathParser p, bool priority = false );
 		void localChange( const pathParser p );
@@ -200,7 +202,11 @@ class picasaCache {
 		void insertControlDir();
 		static const pathParser controlDirPath, logPath, statsPath, updateQueuePath, priorityQueuePath, localChangesQueuePath, authKeysPath, syncPath, offlinePath, onlinePath, helpPath;
 		bool isSpecial( const pathParser &path );
-		void log( std::string msg );
+
+		enum logLevel { LOG_DEBUG, LOG_NOTICE, LOG_WARN, LOG_ERROR, LOG_CRIT };
+		enum logLevel logThreshold;
+		std::stringstream logStream;
+		void log( std::string msg, enum logLevel level = LOG_DEBUG, const char *function="", const int line_num = 0);
 		std::string toString();
 		
 		

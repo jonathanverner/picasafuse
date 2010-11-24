@@ -54,7 +54,6 @@ int PicasaFS::getattr (const char *path, struct stat *stbuf) {
 }
 
 int PicasaFS::fgetattr( const char *path, struct stat *stbuf, struct fuse_file_info *) {
-  cerr << "fgetattr calling getattr..."<<endl;
   return PicasaFS::getattr( path, stbuf );
 }
 

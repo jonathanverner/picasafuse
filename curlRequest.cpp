@@ -75,6 +75,7 @@ void *curlRequest::getThreadCurlHandle() {
 }
 
 bool curlRequest::checkNetworkConnection() {
+  cerr << "networkUP(): CHECKING NETWORK CONNECTION \n";
   string temp;
   void *curl = getThreadCurlHandle();
   curl_easy_reset( curl );
