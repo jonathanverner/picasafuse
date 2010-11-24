@@ -268,13 +268,8 @@ picasaCache::picasaCache( picasaConfig &cf ):
   api = new gAPI( cf.getUser(), "picasaFUSE" );
   if ( cf.getOffline() ) {
     haveNetworkConnection = false;
-  } else {
-    try {
-      api->login( cf.getPass() );
-    } catch ( gAPI::exceptionType ex ) {
-      if ( ex == gAPI::NO_NETWORK_CONNECTION ) haveNetworkConnection = false;
-    }
-  }
+  } else goOnline();
+
   picasa = new picasaService( api );
   
   mkdir( cacheDir.c_str(), 0755 );
@@ -673,8 +668,8 @@ void picasaCache::updateAlbum( const pathParser A ) throw ( enum picasaCache::ex
   picasaAlbumPtr album = boost::dynamic_pointer_cast<picasaAlbum,atomEntry>(c.picasaObj);
   if ( ! haveNetworkConnection ) throw NO_NETWORK_CONNECTION;
   if ( ! album->PULL_CHANGES() ) {
-    removeFromCache( A );
     LOG( LOG_WARN, "Album "+A.getFullName()+" probably deleted on Picasa. Moving it to .lost_and_found/"+A.getAlbum() );
+    lost_and_found(A);
     throw OBJECT_DOES_NOT_EXIST;
   }
   
@@ -719,6 +714,7 @@ void picasaCache::updateAlbum( const pathParser A ) throw ( enum picasaCache::ex
       c.contents.insert( pName );
       pElement.cachePath = A.getFullName()+"/"+pName;
       putIntoCache( A + pName, pElement );
+      pleaseUpdate( A + pName );
     } else { // photo already in cache
       getFromCache( A + pName, pElement );
       if ( ! pElement.localChanges ) {
@@ -726,7 +722,6 @@ void picasaCache::updateAlbum( const pathParser A ) throw ( enum picasaCache::ex
 	putIntoCache( A + pName, pElement );
       }
     }
-    pleaseUpdate( A + pName );
   }
   c.last_updated = time( NULL );
   putIntoCache( A, c );
@@ -838,12 +833,8 @@ void picasaCache::updateImage( const pathParser P ) throw ( enum picasaCache::ex
   if ( ! haveNetworkConnection ) throw NO_NETWORK_CONNECTION;
   
   if ( ! photo->PULL_CHANGES() ) {
-    cacheElement a;
-    getFromCache( P.chop(), a );
-    a.contents.erase( photo->getTitle() );
-    putIntoCache( P.chop(), a );
-    removeFromCache( P );
     LOG( LOG_ERROR, "Could not update photo "+P.getFullName()+". It was probably deleted on picasa." );
+    lost_and_found( P );
     throw OBJECT_DOES_NOT_EXIST;
   }
 
@@ -988,15 +979,6 @@ void picasaCache::doUpdate( const pathParser p ) throw ( enum picasaCache::excep
   /* Object is already present in the cache */
   if ( getFromCache( p, c ) ) {
     
-    /*long cacheValidity = updateInterval;
-    switch( p.getType() ) { 
-      case pathParser::USER:
-	cacheValidity = 600;
-      case pathParser::ALBUM:
-	cacheValidity = 600;
-      case pathParser::IMAGE:
-	cacheValidity = 600;
-    }*/
     // If the cached version is recent, do nothing
     if ( now - c.last_updated < updateInterval ) {
 	stringstream estream;
@@ -1006,8 +988,7 @@ void picasaCache::doUpdate( const pathParser p ) throw ( enum picasaCache::excep
     };
     
     stringstream estream;
-    //estream << "doUpdate: p.getType() == " << p.getType() << "\n";
-    //log(estream.str());
+
     switch( p.getType() ) { 
       case pathParser::IMAGE:
 	updateImage( p );
@@ -1201,6 +1182,15 @@ void picasaCache::no_lock_removeFromCache( const pathParser &p ) {
   cache.erase( key );
 }
 
+void picasaCache::lost_and_found( const pathParser &p ) {
+  cacheElement a;
+  if ( p.isImage() ) {
+    getFromCache( p.chop(), a );
+    a.contents.erase( p.getImage() );
+    putIntoCache( p.chop(), a );
+  }
+  removeFromCache( p );
+}
 void picasaCache::removeFromCache( const pathParser &p ) { 
   boost::mutex::scoped_lock cl(cache_mutex);
   boost::mutex::scoped_lock ql(update_queue_mutex);

@@ -222,6 +222,7 @@ class picasaCache {
 		
 		time_t last_saved;
 		void saveCacheToDisk();
+		void lost_and_found(const pathParser &arg1);
 
 
 
