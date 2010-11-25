@@ -501,11 +501,19 @@ picasaCache::~picasaCache() {
 void picasaCache::saveCacheToDisk() { 
   string cacheFName = cacheDir + "/.cache";
   LOG( LOG_NOTICE, "Cache saved to disk" );
-  std::ofstream ofs( cacheFName.c_str(), ios::binary );
-  {
-    boost::archive::text_oarchive oa(ofs);
-    boost::mutex::scoped_lock l(cache_mutex);
-    oa << cache;
+  try {
+    std::ofstream ofs( cacheFName.c_str(), ios::binary );
+    {
+      boost::archive::text_oarchive oa(ofs);
+      boost::mutex::scoped_lock l(cache_mutex);
+      oa << cache;
+    }
+
+  } catch ( boost::archive::archive_exception &ex ) {
+    string eMSG( "Error while saving cache to disk:" );
+    LOG( LOG_ERROR, eMSG + ex.what() );
+  } catch (...) {
+    LOG( LOG_ERROR, "Error while saving cache to disk." );
   }
   {
     boost::mutex::scoped_lock uql(update_queue_mutex);
