@@ -1,0 +1,8 @@
+BUGS:
+
+-- Reasonably cope with the possibility of album renames.
+
+WISHES:
+
+-- report reasonable ctime, mtime etc. for photos, albums
+-- implement .directory desktop file generation

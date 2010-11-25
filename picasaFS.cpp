@@ -43,13 +43,17 @@ void PicasaFS::destroy( void * ) {
 
 int PicasaFS::getattr (const char *path, struct stat *stbuf) {
   pathParser p(path);
+#ifdef DEBUG
   cerr << "getattr("<<p.getFullName()<<"): start"<<endl;
+#endif
   // Zero out the file stat buffer
   memset( stbuf, 0, sizeof (struct stat) );
   int ret = self->cache->getAttr( p, stbuf );
   stbuf->st_gid = self->GID;
   stbuf->st_uid = self->UID;
+#ifdef DEBUG
   cerr << "getattr("<<p.getFullName()<<"): success ("<<ret<<")"<<endl;
+#endif
   return ret;
 }
 

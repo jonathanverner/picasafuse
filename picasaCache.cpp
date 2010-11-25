@@ -650,7 +650,7 @@ void picasaCache::updateAlbum( const pathParser A ) throw ( enum picasaCache::ex
       picasaAlbum album = picasa->getAlbumByName( albumName, A.getUser(), authKey );
       picasaAlbumPtr a( new picasaAlbum( album ) );
       c.fromAlbum( a );
-      pathParser B = A.chop() + album.getTitle();
+      pathParser B = A.chop() + album.getTitle(); //FIXME: If album.getTitle() contains a "/" this will not work!
       putIntoCache( B, c );
       getFromCache( A.chop(), c );
       c.contents.insert( album.getTitle() );
@@ -687,6 +687,7 @@ void picasaCache::updateAlbum( const pathParser A ) throw ( enum picasaCache::ex
   c.fromAlbum( album );
   
   // If albumName changed, update the parent accordingly
+  //FIXME: this does not work!
   if ( A.getAlbum() != c.name ) { 
     cacheElement u;
     getFromCache( A.chop(), u );
@@ -1278,14 +1279,20 @@ int picasaCache::getAttr( const pathParser &path, struct stat *stBuf ) {
 	if ( ! getFromCache( path, e ) ) return -ENOENT;
 	break;
       case pathParser::ALBUM:
-	pleaseUpdate( path, true );
+	if ( ! (path.getAlbum() == ".directory") ) { // the .directory files are often looked up by kde applications
+	  try {
+	    doUpdate( path );
+	  } catch ( enum exceptionType ex ) {
+	    return -ENOENT;
+	  }
+	  break;
+	}
 	return -ENOENT;
 	break;
       default:
 	return -ENOENT;
     }
   }
-  pleaseUpdate( path );
   stBuf->st_size = e.size;
   switch ( e.type ) { 
 	  case cacheElement::DIRECTORY:
