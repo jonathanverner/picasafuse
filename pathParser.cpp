@@ -50,12 +50,6 @@ pathParser::pathParser( const std::string &path ):
   parse( path );
 }
 
-
-string pathParser::getHash() const { 
-  return userName+"/"+albumName+"/"+image;
-}
-
-
 pathParser::pathParser( const char *path ):
 	valid(false), hUser(false), hAlbum(false), hImage(false)
 { 
@@ -81,6 +75,8 @@ pathParser pathParser::chop() const {
       ret.hAlbum=true;
       ret.hImage=false;
       ret.typ=ALBUM;
+      ret.hash=userName+"/"+albumName+"/";
+      ret.fullname=userName+"/"+albumName;
       break;
     case ALBUM:
       ret.userName=userName;
@@ -88,12 +84,16 @@ pathParser pathParser::chop() const {
       ret.hAlbum=false;
       ret.hImage=false;
       ret.typ=USER;
+      ret.hash=userName+"//";
+      ret.fullname=userName;
       break;
     case USER:
       ret.hUser=false;
       ret.hAlbum=false;
       ret.hImage=false;
       ret.typ=ROOT;
+      ret.hash="//";
+      ret.fullname="";
       break;
     default:
       ret.typ=INVALID_OBJECT;
@@ -126,22 +126,32 @@ void pathParser::parse( const string &path ) {
 		  valid = true;
 		  if ( ! hUser ) typ = ROOT;
   }
+  hash=userName+"/"+albumName+"/"+image;
+  if ( hImage ) fullname= userName + "/" + albumName + "/" + image;
+  else if ( hAlbum ) fullname=userName + "/" + albumName;
+  else if ( hUser ) fullname=userName;
 }
 
 void pathParser::append( const std::string &path ) { 
   if ( ! hUser ) { 
     hUser = true;
     userName = path;
+    hash=userName+"//";
+    fullname=userName;
     return;
   }
   if ( ! hAlbum ) { 
     hAlbum = true;
     albumName = path;
+    hash=userName+"/"+albumName+"/";
+    fullname=userName+"/"+albumName;
     return;
   }
   if ( ! hImage ) { 
     hImage = true;
     image = path;
+    hash=userName+"/"+albumName+"/"+image;
+    fullname=userName+"/"+albumName+"/"+image;
     return;
   }
 }
@@ -150,16 +160,22 @@ void pathParser::toParent() {
   if ( hImage ) { 
     hImage = false;
     image = "";
+    hash=userName+"/"+albumName+"/";
+    fullname=userName+"/"+albumName;
     return;
   }
   if ( hAlbum ) { 
     hAlbum = false;
     albumName = "";
+    hash=userName+"//";
+    fullname=userName;
     return;
   }
   if ( hUser ) { 
     hUser == false;
     userName = "";
+    hash="//";
+    fullname="";
     return;
   }
 }
@@ -171,17 +187,10 @@ std::string pathParser::getLastComponent() const {
   return "";
 }
 
-std::string pathParser::getFullName() const {
-  if ( hImage ) return userName + "/" + albumName + "/" + image;
-  if ( hAlbum ) return userName + "/" + albumName;
-  if ( hUser ) return userName;
-  return "";
-}
-
 
 bool pathParser::operator==( const pathParser &p ) const { 
   if ( p.hUser != hUser || p.hAlbum != hAlbum || p.hImage != hImage || p.valid != valid ) return false;
-  return ( p.userName == userName && p.albumName == albumName && p.image == image );
+  return ( p.image == image && p.albumName == albumName && p.userName == userName );
 }
 
 bool pathParser::operator<(const pathParser& p) const {
@@ -192,33 +201,7 @@ bool pathParser::operator<(const pathParser& p) const {
 
 pathParser pathParser::operator+( const string& name ) const {
   pathParser ret(*this);
-
-  if ( name.find("/") != string::npos ) { 
-    ret.valid=false;
-    ret.typ = INVALID_OBJECT;
-    return ret;
-  }
-  
-  switch( typ ) { 
-    case ROOT:
-      ret.hUser = true;
-      ret.userName = name;
-      ret.typ=USER;
-      break;
-    case USER:
-      ret.hAlbum = true;
-      ret.albumName = name;
-      ret.typ = ALBUM;
-      break;
-    case ALBUM:
-      ret.hImage = true;
-      ret.image = name;
-      ret.typ = IMAGE;
-      break;
-    default:
-      ret.valid = false;
-      ret.typ = INVALID_OBJECT;
-  }
+  ret.append( name );
   return ret;
 }
 

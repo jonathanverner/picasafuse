@@ -1205,11 +1205,9 @@ bool picasaCache::isCached( const string &key ) {
   return (cache.find(key) != cache.end() );
 }
 
-bool picasaCache::isDir( const pathParser &path ) {
-  struct cacheElement e;
-  if ( getFromCache( path, e) ) { 
-    return ( e.type == cacheElement::DIRECTORY );
-  } else return false;
+// Just guesses from the path, no real check made
+bool picasaCache::isDir( const pathParser& p ) const {
+  return ( p.isAlbum() || p.isUser() );
 }
 
 string picasaCache::getXAttr( const pathParser &p, const string &attrName ) throw (enum exceptionType) {
@@ -1454,14 +1452,16 @@ void picasaCache::my_mkdir( const pathParser &p ) throw ( enum picasaCache::exce
 
 set<string> picasaCache::ls( const pathParser &path ) throw ( enum picasaCache::exceptionType) {
   set<string> ret;
-  if ( ! isDir(path) ) return ret;
   struct cacheElement e;
   if ( getFromCache( path , e ) ) {
+      if ( e.type != cacheElement::DIRECTORY ) throw OPERATION_NOT_SUPPORTED;
       pleaseUpdate( path );
     return e.contents;
   } else {
+    if ( ! isDir(path) ) throw OPERATION_NOT_SUPPORTED;
     doUpdate( path );
-    if ( getFromCache( path, e ) ) { 
+    if ( getFromCache( path, e ) ) {
+      if ( e.type != cacheElement::DIRECTORY ) throw OPERATION_NOT_SUPPORTED;
       return e.contents;
     } else throw OBJECT_DOES_NOT_EXIST;
   }

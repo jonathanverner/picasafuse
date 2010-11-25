@@ -18,7 +18,7 @@
 
 class pathParser { 
 	private:
-		std::string userName, albumName, image;
+		std::string userName, albumName, image, hash, fullname;
 		bool valid;
 		bool hUser, hAlbum, hImage;
   
@@ -57,12 +57,12 @@ class pathParser {
 		std::string getAlbum() const { return albumName; }
 		std::string getImage() const { return image; }
 		std::string getLastComponent() const;
-		std::string getFullName() const;
+		std::string getFullName() const { return fullname; }
 		
 		pathParser chop() const;
 
 
-		std::string getHash() const;
+		std::string getHash() const { return hash;};
 
 		bool operator ==(const pathParser &p) const;
 		bool operator <(const pathParser &p) const;

@@ -101,8 +101,6 @@ int PicasaFS::readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
 	pathParser p(path);
 
-	if ( ! self->cache->isDir( p ) ) return -ENOENT;
-
 	set<string> dirList;
 
 	try { 

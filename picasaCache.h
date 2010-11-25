@@ -130,7 +130,7 @@ class picasaCache {
 		picasaCache( picasaConfig &cf );
 		~picasaCache();
 
-		bool isDir( const pathParser &p );
+
 		bool isCached( const pathParser &p );
 
 		void needPath( const pathParser &p );
@@ -197,6 +197,7 @@ class picasaCache {
 
 		bool isCached( const std::string &key );
 		void clearCache();
+		bool isDir( const pathParser &p ) const;
 	
 		void createRootDir();
 		void insertControlDir();
