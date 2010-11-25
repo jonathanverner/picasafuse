@@ -72,12 +72,13 @@ struct cacheElement {
   /* only for FILE */
   bool generated;
   std::string cachePath;
+  int read_fd,write_fd;
  
 
   cacheElement(): name(""), size(0), world_readable(false), writeable(false),
 		  localChanges(false), last_updated(0), xmlRepresentation(""),
 		  cachedVersion(""), authKey(""), generated(false),
-		  cachePath(""), numOfOpenWr(0) {};
+		  cachePath(""), numOfOpenWr(0), read_fd(-1),write_fd(-1) {};
 		  
   const struct cacheElement &operator=(const struct cacheElement &e);
   
@@ -226,7 +227,7 @@ class picasaCache {
 		void lost_and_found(const pathParser &arg1);
 
 
-
+		int num_of_open_fds;
 
 		boost::mutex cache_mutex;
 		std::map< std::string, struct cacheElement > cache;

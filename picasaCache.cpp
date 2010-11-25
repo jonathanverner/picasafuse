@@ -97,7 +97,6 @@ const struct cacheElement &cacheElement::operator=( const struct cacheElement &e
     cachedVersion = e.cachedVersion;
     picasaObj = e.picasaObj;
     finalized = e.finalized;
-    numOfOpenWr = e.numOfOpenWr;
     switch (e.type) { 
 	    case cacheElement::DIRECTORY:
 		    authKey = e.authKey;
@@ -107,6 +106,9 @@ const struct cacheElement &cacheElement::operator=( const struct cacheElement &e
 	            authKey   = "";
 		    generated = e.generated;
 		    cachePath = e.cachePath;
+		    read_fd = e.read_fd;
+		    write_fd = e.write_fd;
+		    numOfOpenWr = e.numOfOpenWr;
 		    return e;
     }
     return e;
@@ -258,7 +260,7 @@ const string help_text = "PicasaFUSE help\n"
 picasaCache::picasaCache( picasaConfig &cf ):
 	conf(cf),
 	work_to_do(false), kill_thread(false), cacheDir( cf.getCacheDir() ), updateInterval(cf.getUpdateInterval()),
-	numOfPixels( cf.getMaxPixels() ), maxJobThreads( 10 ), haveNetworkConnection(true),
+	numOfPixels( cf.getMaxPixels() ), maxJobThreads( 10 ), haveNetworkConnection(true),num_of_open_fds(0),
 #ifdef DEBUG
 	logThreshold(LOG_DEBUG)
 #else
@@ -439,6 +441,7 @@ void picasaCache::updateStatsFile() {
   else os << "offline";
   os<<std::endl;
   os << "CURL handles count:"<<curlRequest::handles_count << endl;
+  os << "OPEN file descriptors:" << num_of_open_fds << endl;
   os << conf;
   e.cachePath=os.str();
   e.size = e.cachePath.size();
@@ -1425,13 +1428,35 @@ void picasaCache::my_open( const pathParser &p, int flags ) throw ( enum picasaC
   cacheElement c;
   if ( ! getFromCache( p, c) ) throw OBJECT_DOES_NOT_EXIST;
   c.numOfOpenWr++;
-  putIntoCache( p, c);
-  if ( c.generated ) updateSpecial( p );
-  if ( rdonly ) return;
+  if ( c.generated ) {
+    if (! rdonly) throw UNIMPLEMENTED;
+    putIntoCache( p, c);
+    updateSpecial( p );
+    return;
+  } else {
+    if ( rdonly ) {
+      if ( c.read_fd == -1 ) {
+	string absPath = cacheDir + "/" + c.cachePath;
+	c.read_fd = open( absPath.c_str() , O_RDONLY );
+	if ( c.read_fd > -1 ) num_of_open_fds++;
+      }
+      putIntoCache( p, c);
+      return;
+    }
+  }  
   switch( p.getType() ) { 
     case pathParser::IMAGE:
-      if ( p.getUser() == picasa->getUser() ) return;
+      if ( p.getUser() == picasa->getUser() ) {
+	if ( c.write_fd == -1 ) {
+	  string absPath = cacheDir + "/" + c.cachePath;
+	  c.write_fd = open( absPath.c_str() , flags );
+	  if ( c.write_fd > -1 ) num_of_open_fds++;
+	  putIntoCache( p, c);
+	} 
+	return;
+      }
     default:
+      LOG(LOG_DEBUG, "Access denied for writing into "+p.getFullName() );
       throw ACCESS_DENIED;
   }
 }
@@ -1478,7 +1503,6 @@ int fillBufFromString( string data, char *buf, size_t size, off_t offset ) {
 }
 
 int picasaCache::read( const pathParser &path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi ) {
-  int ret=0;
   struct cacheElement e;
   if ( getFromCache( path, e ) ) {
     if ( e.type != cacheElement::FILE ) return 0;
@@ -1489,20 +1513,23 @@ int picasaCache::read( const pathParser &path, char *buf, size_t size, off_t off
 	return fillBufFromString( e.cachePath, buf, size, offset );
       } else return fillBufFromString( "Data not yet available...\n", buf, size, offset );
     }
-    string absPath = cacheDir + "/" + e.cachePath;
-    int fd = open( absPath.c_str() , O_RDONLY );
-    if ( fd == -1 ) { 
-      char *errBuf = strerror( errno );
-      string err = "Error opening "+absPath+" (";
-      err+=errBuf;
-      err+=")\n";
-      pleaseUpdate( path, true );
-      LOG( LOG_ERROR, "Error opening backing store " +absPath+" for "+path.getFullName()+":"+errBuf);
-      return fillBufFromString( err, buf, size, offset );
+    if ( e.read_fd == -1 ) {
+      string absPath = cacheDir + "/" + e.cachePath;
+      e.read_fd = open( absPath.c_str() , O_RDONLY );
+      if ( e.read_fd != -1 ) {
+	putIntoCache( path, e );
+	num_of_open_fds++;
+      } else {
+        char *errBuf = strerror( errno );
+        string err = "Error opening "+absPath+" (";
+        err+=errBuf;
+        err+=")\n";
+        pleaseUpdate( path, true );
+        LOG( LOG_WARN, "Error opening backing store " +absPath+" for "+path.getFullName()+":"+errBuf);
+        return fillBufFromString( err, buf, size, offset );
+      }
     }
-    ret = pread(fd,buf,size, offset);
-    close(fd);
-    return ret;
+    return pread(e.read_fd,buf,size, offset);
   } else return 0;
 }
 
@@ -1510,19 +1537,19 @@ int picasaCache::my_write( const pathParser &path, const char *buf, size_t size,
   struct cacheElement e;
   if ( getFromCache( path, e ) ) {
     if ( e.generated ) return -EPERM;
-    string absPath = cacheDir + "/" + e.cachePath;
-    int fd = open( absPath.c_str(), O_WRONLY );
-    if ( fd == -1 ) { 
-      string errBuf( strerror( errno ) );
-      LOG( LOG_ERROR, "Error opening backing store " +absPath+" for "+path.getFullName()+":"+errBuf);
-      return -ENOENT;
+    if ( e.write_fd == -1 ) {
+        string absPath = cacheDir + "/" + e.cachePath;
+	e.write_fd = open( absPath.c_str(), O_WRONLY );
+	if ( e.write_fd == -1 ) {
+	  string errBuf( strerror( errno ) );
+	  LOG( LOG_ERROR, "Error opening backing store " +absPath+" for "+path.getFullName()+":"+errBuf);
+	  return -ENOENT;
+	} else num_of_open_fds++;
     }
     e.localChanges = true;
     e.finalized = false;
     putIntoCache( path, e );
-    int ret = pwrite( fd, buf, size, offset );
-    close( fd );
-    return ret;
+    return pwrite( e.write_fd, buf, size, offset );
   } else return -ENOENT;
 }
 
@@ -1531,18 +1558,31 @@ void picasaCache::my_close( const pathParser &path ) {
   stringstream ss;
   if ( getFromCache( path, e ) ) {
     e.numOfOpenWr--;
-    if ( e.numOfOpenWr <= 0  && e.localChanges ) { 
+    if ( e.numOfOpenWr <= 0 ) {
       e.numOfOpenWr=0;
-      if ( numOfPixels > 0 ) {
-	convert magic;
-	magic.resize( numOfPixels, cacheDir + "/" + e.cachePath );
+      if ( e.read_fd != -1 ) {
+	close(e.read_fd);
+	e.read_fd=-1;
+	num_of_open_fds--;
       }
-      e.finalized = true;
-      e.last_updated=0;
-      putIntoCache( path, e );
-      localChange( path );
-    }
-    putIntoCache(path, e);
+      if ( e.write_fd != -1 ) {
+	close(e.write_fd);
+	e.write_fd=-1;
+	num_of_open_fds--;
+      }
+      if ( e.localChanges ) {
+	if ( numOfPixels > 0 ) {
+	  convert magic;
+	  magic.resize( numOfPixels, cacheDir + "/" + e.cachePath );
+        }
+        e.finalized = true;
+        e.last_updated=0;
+	putIntoCache( path, e );
+	localChange( path );
+      } else {
+	putIntoCache( path, e);
+      }
+    } else putIntoCache(path, e);
   } else {
     throw OBJECT_DOES_NOT_EXIST;
   }
