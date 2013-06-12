@@ -133,6 +133,17 @@ void pathParser::parse( const string &path ) {
       valid = true;
       if ( ! hUser ) typ = ROOT;
   }
+
+  // Some special paths are invalid
+  if ( ( hImage && image.find(".directory.lock") != -1 ) ||
+       ( hUser && userName == ".git" || userName == ".svn") ||
+       ( hAlbum && albumName == ".git" || albumName == ".svn" )
+     )
+  {
+      valid = false;
+      typ = INVALID_OBJECT;
+  }
+
   hash=userName+"/"+albumName+"/"+image;
   if ( hImage ) fullname= userName + "/" + albumName + "/" + image;
   else if ( hAlbum ) fullname=userName + "/" + albumName;
