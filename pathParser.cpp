@@ -106,25 +106,32 @@ pathParser pathParser::chop() const {
 void pathParser::parse( const string &path ) { 
   list<string> componentList = chopString( path, '/' );
   typ = INVALID_OBJECT;
-  switch ( componentList.size() ) { 
-	  case 3:
-		  hImage = true;
-		  image = componentList.back();
-		  componentList.pop_back();
-		  typ = IMAGE;
-	  case 2:
-		  hAlbum = true;
-		  albumName = componentList.back();
-		  componentList.pop_back();
-		  if ( ! hImage ) typ = ALBUM;
-	  case 1:
-		  hUser = true;
-		  userName = componentList.back();
-		  componentList.pop_back();
-		  if ( ! hAlbum) typ = USER;
-	  case 0:
-		  valid = true;
-		  if ( ! hUser ) typ = ROOT;
+  valid = false;
+
+  if ( componentList.size() == 3 ) {
+      hImage = true;
+      image = componentList.back();
+      componentList.pop_back();
+      typ = IMAGE;
+  }
+
+  if ( componentList.size() == 2 ) {
+      hAlbum = true;
+      albumName = componentList.back();
+      componentList.pop_back();
+      if ( ! hImage ) typ = ALBUM;
+  }
+
+  if ( componentList.size() == 1 ) {
+      hUser = true;
+      userName = componentList.back();
+      componentList.pop_back();
+      if ( ! hAlbum) typ = USER;
+  }
+
+  if ( componentList.size() == 0 ) {
+      valid = true;
+      if ( ! hUser ) typ = ROOT;
   }
   hash=userName+"/"+albumName+"/"+image;
   if ( hImage ) fullname= userName + "/" + albumName + "/" + image;
@@ -138,6 +145,7 @@ void pathParser::append( const std::string &path ) {
     userName = path;
     hash=userName+"//";
     fullname=userName;
+    typ = pathParser::USER;
     return;
   }
   if ( ! hAlbum ) { 
@@ -145,6 +153,7 @@ void pathParser::append( const std::string &path ) {
     albumName = path;
     hash=userName+"/"+albumName+"/";
     fullname=userName+"/"+albumName;
+    typ = pathParser::ALBUM;
     return;
   }
   if ( ! hImage ) { 
@@ -152,6 +161,7 @@ void pathParser::append( const std::string &path ) {
     image = path;
     hash=userName+"/"+albumName+"/"+image;
     fullname=userName+"/"+albumName+"/"+image;
+    typ = pathParser::IMAGE;
     return;
   }
 }
@@ -162,6 +172,7 @@ void pathParser::toParent() {
     image = "";
     hash=userName+"/"+albumName+"/";
     fullname=userName+"/"+albumName;
+    typ = pathParser::ALBUM;
     return;
   }
   if ( hAlbum ) { 
@@ -169,6 +180,7 @@ void pathParser::toParent() {
     albumName = "";
     hash=userName+"//";
     fullname=userName;
+    typ = pathParser::USER;
     return;
   }
   if ( hUser ) { 
@@ -176,6 +188,7 @@ void pathParser::toParent() {
     userName = "";
     hash="//";
     fullname="";
+    typ = pathParser::ROOT;
     return;
   }
 }
