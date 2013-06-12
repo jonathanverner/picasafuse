@@ -47,7 +47,7 @@ private:
 #ifdef HAVE_DBUS
   std::set<std::string> usersInKeyRing;
   bool useKeyRing;
-  
+
   void loadUIKR();
   void saveUIKR() const;
   std::string readFromKeyring( std::string key ) const;
@@ -57,7 +57,7 @@ private:
 public:
 
   picasaConfig( myfs_config &cf );
-  
+
   void saveConfig();
   std::string getUser() const {return userName;};
   std::string getPass() const {return password; };

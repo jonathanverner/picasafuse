@@ -13,7 +13,7 @@
 
 
 #include "curlRequest.h"
- 
+
 #include <curl/curl.h>
 
 #include <stdio.h>
@@ -25,18 +25,18 @@ map<boost::thread::id, void*> curlRequest::curl_handles;
 int curlRequest::handles_count = 0;
 
 
-static size_t responseData(void *ptr, size_t size, size_t nmemb, void *data ) { 
+static size_t responseData(void *ptr, size_t size, size_t nmemb, void *data ) {
   string *responseBuf = static_cast<string *>(data);
   responseBuf->append( (char *) ptr, size*nmemb );
   return size*nmemb;
 }
 
-struct requestData { 
+struct requestData {
   string data;
   size_t size,pos;
 };
 
-static size_t requestData(void *ptr, size_t size, size_t nmemb, void *Data ) { 
+static size_t requestData(void *ptr, size_t size, size_t nmemb, void *Data ) {
   struct requestData *data = (struct requestData *) Data;
   size_t availableData = data->size-data->pos, bufSize = size*nmemb, copySize;
   if ( availableData > bufSize ) copySize = bufSize;
@@ -54,16 +54,16 @@ static size_t requestData(void *ptr, size_t size, size_t nmemb, void *Data ) {
 
 
 
-curlRequest::curlRequest(): 
+curlRequest::curlRequest():
 	request( GET ), body(""), URL(""), status(-1),
 	response(""), outFile(""),network_down(false)
 {
 }
 
-void *curlRequest::getThreadCurlHandle() { 
+void *curlRequest::getThreadCurlHandle() {
   void *ret;
   boost::thread::id tID = boost::this_thread::get_id();
-  if ( curl_handles.find( tID ) == curl_handles.end() ) { 
+  if ( curl_handles.find( tID ) == curl_handles.end() ) {
     ret = curl_easy_init();
     curl_easy_setopt(ret, CURLOPT_NOSIGNAL, 1);
     handles_count++;
@@ -97,7 +97,7 @@ bool curlRequest::checkNetworkConnection() {
 bool curlRequest::perform() throw (enum exceptionType) {
   cerr<<"Performing request for " << URL << endl;
   void *curl = getThreadCurlHandle();
-  if ( ! getThreadCurlHandle() ) { 
+  if ( ! getThreadCurlHandle() ) {
     cerr << "getFeed() Error: INVALID CURL HANDLE\n";
     return false;
   }
@@ -114,12 +114,12 @@ bool curlRequest::perform() throw (enum exceptionType) {
   curl_easy_setopt( curl, CURLOPT_URL, URL.c_str() );
   curl_easy_setopt( curl, CURLOPT_HTTPHEADER, curlHDRS );
 
-  if ( outFile.compare("") == 0 ) { 
+  if ( outFile.compare("") == 0 ) {
     curl_easy_setopt( curl, CURLOPT_WRITEFUNCTION, responseData );
     curl_easy_setopt( curl, CURLOPT_WRITEDATA, &response );
-  } else { 
+  } else {
     outfl = fopen( outFile.c_str(), "w" );
-    if ( outfl == NULL ) { 
+    if ( outfl == NULL ) {
       cerr << "curlRequest::perform(): cannot open file '"<<outFile<<"' for writing.";
       return false;
     }
@@ -132,20 +132,20 @@ bool curlRequest::perform() throw (enum exceptionType) {
   bodyData.size = body.size();
   bodyData.pos=0;
   string method="DELETE";
-  
 
-  switch( request ) { 
+
+  switch( request ) {
 	  case GET:
 		  curl_easy_setopt( curl, CURLOPT_HTTPGET, 1 );
 		  break;
 	  case POST:
 		  curl_easy_setopt( curl, CURLOPT_POST, 1 );
-		  if ( inFile.compare("") == 0 ) { 
+		  if ( inFile.compare("") == 0 ) {
 		    curl_easy_setopt( curl, CURLOPT_POSTFIELDSIZE, body.size() );
 		    curl_easy_setopt( curl, CURLOPT_POSTFIELDS, body.c_str() );
 		  } else {
 		    infl = fopen( inFile.c_str(), "r" );
-		    if ( infl == NULL ) { 
+		    if ( infl == NULL ) {
 		      cerr << "curlRequest::perform(): cannot open file '"<<inFile<<"' for reading.";
 		      return false;
 		    }
@@ -195,7 +195,7 @@ bool curlRequest::perform() throw (enum exceptionType) {
   }
   network_down=false;
   curl_easy_getinfo( curl, CURLINFO_RESPONSE_CODE, &status );
-  if ( outfl ) fclose( outfl ); 
+  if ( outfl ) fclose( outfl );
   if ( infl ) fclose( infl );
   curl_slist_free_all( curlHDRS );
 };

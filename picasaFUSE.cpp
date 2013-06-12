@@ -27,7 +27,7 @@ static struct fuse_opt myfs_opts[] = {
   MYFS_OPT("passsword=%s",		password, 0),
   MYFS_OPT("resize=%i",			maxPixels, 0),
   MYFS_OPT("--offline",			offline, 1 ),
-#ifdef HAVE_DBUS  
+#ifdef HAVE_DBUS
   MYFS_OPT("--use-keyring=false",       useKeyRing, 0 ),
 #endif
 
@@ -41,7 +41,7 @@ static struct fuse_opt myfs_opts[] = {
 
 static int myfs_opt_proc(void *data, const char *arg, int key, struct fuse_args *outargs)
 {
-  if ( key == KEY_HELP || key == KEY_VERSION ) { 
+  if ( key == KEY_HELP || key == KEY_VERSION ) {
     PicasaFS picasa;
     switch (key) {
       case KEY_HELP:
@@ -62,7 +62,7 @@ static int myfs_opt_proc(void *data, const char *arg, int key, struct fuse_args 
 	       "    --offline			do not try any network operations, work locally\n"
 #ifdef HAVE_DBUS
 	       "    --use-keyring=false		do not try to use the kde wallet\n"
-#endif 
+#endif
 	       "    -t NUM           		same as '-o update-interval=NUM'\n\n"
 	       , outargs->argv[0]);
 	fuse_opt_add_arg(outargs, "-ho");
@@ -82,18 +82,18 @@ static int myfs_opt_proc(void *data, const char *arg, int key, struct fuse_args 
 int main (int argc, char **argv) {
   struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
   struct myfs_config conf;
-  
+
   memset(&conf, 0, sizeof(conf));
   conf.offline=false;
 #ifdef HAVE_DBUS
   conf.useKeyRing = true;
 #endif
-  
+
   fuse_opt_parse(&args, &conf, myfs_opts, myfs_opt_proc);
   picasaConfig pcConfig(conf);
-  
+
   PicasaFS picasa( pcConfig );
-	
+
   // The first 3 parameters are identical to the fuse_main function.
   // The last parameter gives a pointer to a class instance, which is
   // required for static methods to access instance variables/ methods.

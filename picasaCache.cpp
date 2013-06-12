@@ -34,7 +34,7 @@
 #include <boost/serialization/string.hpp>
 #include <boost/serialization/map.hpp>
 #include <boost/serialization/set.hpp>
-#include <boost/date_time.hpp> 
+#include <boost/date_time.hpp>
 
 
 #include <sstream>
@@ -56,7 +56,7 @@ using namespace std;
 
 string picasaCache::exceptionString( exceptionType ex ) {
   string ret;
-  switch( ex ) { 
+  switch( ex ) {
     case OBJECT_DOES_NOT_EXIST:
       ret = "OBJECT_DOES_NOT_EXIST";
       break;
@@ -97,7 +97,7 @@ const struct cacheElement &cacheElement::operator=( const struct cacheElement &e
     cachedVersion = e.cachedVersion;
     picasaObj = e.picasaObj;
     finalized = e.finalized;
-    switch (e.type) { 
+    switch (e.type) {
 	    case cacheElement::DIRECTORY:
 		    authKey = e.authKey;
 		    contents = e.contents;
@@ -114,13 +114,13 @@ const struct cacheElement &cacheElement::operator=( const struct cacheElement &e
     return e;
 }
 
-ostream &operator<<(ostream &out, const cacheElement &e ) { 
+ostream &operator<<(ostream &out, const cacheElement &e ) {
   out << "Name: " << e.name <<endl;
   out << "Size: " << e.size << endl;
   out << "Last Updated: " << e.last_updated << endl;
   out << "Cached Version: " << e.cachedVersion << endl;
   out << "Num of open fd: " << e.numOfOpenWr << endl;
-  switch( e.type ) { 
+  switch( e.type ) {
     case cacheElement::DIRECTORY:
       out << "Type: Directory " << endl;
       out << "AuthKey: " << e.authKey << endl;
@@ -182,14 +182,14 @@ void cacheElement::fromPhoto(picasaPhotoPtr photo) {
   finalized = true;
 }
 
-void cacheMkdir( string cacheDir, const pathParser &p ) { 
+void cacheMkdir( string cacheDir, const pathParser &p ) {
   string path = cacheDir+"/";
-  if ( p.haveUser() && p.getUser() != "logs" ) { 
+  if ( p.haveUser() && p.getUser() != "logs" ) {
     path+=p.getUser();
     mkdir( path.c_str(), 0755 );
     path+="/";
   }
-  if ( p.haveAlbum() ) { 
+  if ( p.haveAlbum() ) {
     path+=p.getAlbum();
     mkdir( path.c_str(), 0755 );
   }
@@ -273,10 +273,10 @@ picasaCache::picasaCache( picasaConfig &cf ):
   } else goOnline();
 
   picasa = new picasaService( api );
-  
+
   mkdir( cacheDir.c_str(), 0755 );
   string cacheFName = cacheDir + "/.cache", err;
-  if ( boost::filesystem::exists( cacheFName ) ) { 
+  if ( boost::filesystem::exists( cacheFName ) ) {
     try {
       std::ifstream ifs(cacheFName.c_str(), ios::binary );
       boost::archive::text_iarchive ia(ifs);
@@ -314,7 +314,7 @@ bool picasaCache::goOnline() {
   return haveNetworkConnection;
 }
 
-string picasaCache::toString() { 
+string picasaCache::toString() {
   std::stringstream ss;
   boost::archive::text_oarchive oa( ss );
   boost::mutex::scoped_lock l(cache_mutex);
@@ -322,7 +322,7 @@ string picasaCache::toString() {
   return ss.str();
 }
 
-void picasaCache::createRootDir() { 
+void picasaCache::createRootDir() {
   pathParser root("");
   if ( isCached( root ) ) return;
   struct cacheElement e;
@@ -480,7 +480,7 @@ void picasaCache::updateSpecial(const pathParser p) {
 }
 
 
-bool picasaCache::isSpecial( const pathParser &p ) { 
+bool picasaCache::isSpecial( const pathParser &p ) {
   if ( p == controlDirPath ) return true;
   if ( p == logPath ) return true;
   struct cacheElement e;
@@ -498,7 +498,7 @@ picasaCache::~picasaCache() {
   priority_update_thread->join();
 }
 
-void picasaCache::saveCacheToDisk() { 
+void picasaCache::saveCacheToDisk() {
   string cacheFName = cacheDir + "/.cache";
   LOG( LOG_NOTICE, "Cache saved to disk" );
   try {
@@ -535,7 +535,7 @@ void picasaCache::log( string msg, enum logLevel level, const char *function, co
   logStream << tm << " :: " << function << "(line:"<<line<<"):"<< msg <<endl;
 }
 
-void picasaCache::pleaseUpdate( const pathParser p, bool priority ) { 
+void picasaCache::pleaseUpdate( const pathParser p, bool priority ) {
   if ( ! p.isValid() ) return;
   if ( ! p.haveUser() ) return;
   time_t now = time( NULL );
@@ -559,7 +559,7 @@ void picasaCache::pleaseUpdate( const pathParser p, bool priority ) {
   }
 }
 
-void picasaCache::localChange( const pathParser p ) { 
+void picasaCache::localChange( const pathParser p ) {
   boost::mutex::scoped_lock l(local_change_queue_mutex);
   local_change_queue.push_back(p);
   l.unlock();
@@ -570,7 +570,7 @@ void picasaCache::localChange( const pathParser p ) {
 void picasaCache::newAlbum( const pathParser A ) throw ( enum picasaCache::exceptionType ) {
   picasaAlbum album = picasa->newAlbum( A.getAlbum() );
   cacheElement c;
-  if ( ! getFromCache( A.chop(), c ) ) { 
+  if ( ! getFromCache( A.chop(), c ) ) {
     updateUser( A.chop() );
   }
   if ( ! getFromCache( A.chop(), c ) ) {
@@ -607,14 +607,14 @@ void picasaCache::pushAlbum( const pathParser A ) throw ( enum picasaCache::exce
   cacheElement c;
   if ( ! getFromCache( A, c ) ) throw OBJECT_DOES_NOT_EXIST;
   if ( ! c.localChanges ) return;
-  
+
   if ( ! c.picasaObj ) c.buildPicasaObj(picasa);
   if ( ! c.picasaObj ) {
     LOG( LOG_ERROR, "Album "+A.getFullName()+" could not be reconstructed from xml. Offending xml:"+c.xmlRepresentation);
     removeFromCache( A );
     throw UNEXPECTED_ERROR;
   }
-  
+
   picasaAlbumPtr album = boost::dynamic_pointer_cast<picasaAlbum,atomEntry>(c.picasaObj);
   if ( ! haveNetworkConnection ) throw NO_NETWORK_CONNECTION;
   try {
@@ -632,7 +632,7 @@ void picasaCache::pushAlbum( const pathParser A ) throw ( enum picasaCache::exce
   c.localChanges = false;
   putIntoCache( A, c );
 }
-  
+
 
 /*
  * Assumes A is already in the cache (or unlisted), otherwise throws
@@ -663,19 +663,19 @@ void picasaCache::updateAlbum( const pathParser A ) throw ( enum picasaCache::ex
     }
     throw OBJECT_DOES_NOT_EXIST;
   }
-  
+
   if ( c.localChanges ) {
     pushAlbum( A );
     return;
   }
-  
+
   if ( ! c.picasaObj ) c.buildPicasaObj(picasa);
   if ( ! c.picasaObj ) {
     LOG( LOG_ERROR, "Album "+A.getFullName()+" could not be reconstructed from xml. Offending xml:"+c.xmlRepresentation);
     removeFromCache( A );
     throw UNEXPECTED_ERROR;
   }
-  
+
   picasaAlbumPtr album = boost::dynamic_pointer_cast<picasaAlbum,atomEntry>(c.picasaObj);
   if ( ! album ) {
       LOG( LOG_ERROR, "Album "+A.getFullName()+" is not an ALBUM !!!")
@@ -688,12 +688,12 @@ void picasaCache::updateAlbum( const pathParser A ) throw ( enum picasaCache::ex
     lost_and_found(A);
     throw OBJECT_DOES_NOT_EXIST;
   }
-  
+
   c.fromAlbum( album );
-  
+
   // If albumName changed, update the parent accordingly
   //FIXME: this does not work!
-  if ( A.getAlbum() != c.name ) { 
+  if ( A.getAlbum() != c.name ) {
     cacheElement u;
     getFromCache( A.chop(), u );
     u.contents.erase( A.getAlbum() );
@@ -702,7 +702,7 @@ void picasaCache::updateAlbum( const pathParser A ) throw ( enum picasaCache::ex
   }
 
   list<picasaPhotoPtr> photos = album->getPhotos();
-  
+
   set<string> photoTitles;
   for( list<picasaPhotoPtr>::iterator p = photos.begin(); p != photos.end(); ++p )
     photoTitles.insert( (*p)->getTitle() );
@@ -711,7 +711,7 @@ void picasaCache::updateAlbum( const pathParser A ) throw ( enum picasaCache::ex
   // which have no local changes
   set<string> toDelete;
   // find candidates first
-  for( set<string>::iterator p = c.contents.begin(); p != c.contents.end(); ++p ) { 
+  for( set<string>::iterator p = c.contents.begin(); p != c.contents.end(); ++p ) {
     if ( photoTitles.find( *p ) == photoTitles.end() ) {
       getFromCache( A + *p, pElement );
       if ( ! pElement.localChanges ) toDelete.insert( *p );
@@ -751,7 +751,7 @@ void picasaCache::updateAlbum( const pathParser A ) throw ( enum picasaCache::ex
 }
 
 
-void picasaCache::pushImage( const pathParser P ) throw ( enum picasaCache::exceptionType ) { 
+void picasaCache::pushImage( const pathParser P ) throw ( enum picasaCache::exceptionType ) {
   cacheElement c;
   log( "picasaCache::pushImage(" + P.getFullName() + "):\n" );
   try {
@@ -759,7 +759,7 @@ void picasaCache::pushImage( const pathParser P ) throw ( enum picasaCache::exce
     LOG( LOG_ERROR, "Image " + P.getFullName() + " not present int cache." );
     throw OBJECT_DOES_NOT_EXIST;
   }
-  
+
   if ( c.localChanges ) {
     if ( ! c.finalized ) {
       return;
@@ -780,7 +780,7 @@ void picasaCache::pushImage( const pathParser P ) throw ( enum picasaCache::exce
       }
       c.localChanges = false;
       LOG( LOG_NOTICE, "Uploaded "+P.getFullName()+" to Picasa." );
-      if ( photo->getSummary() != summary && summary != "") { 
+      if ( photo->getSummary() != summary && summary != "") {
 	photo->setSummary(summary);
 	if ( ! photo->UPDATE() ) c.localChanges = true;
 	LOG( LOG_ERROR, "Failed updating photo caption on "+P.getFullName()+"." );
@@ -824,15 +824,15 @@ void picasaCache::pushImage( const pathParser P ) throw ( enum picasaCache::exce
 /*
  * Assumes P is already in the cache, otherwise throws
  */
-void picasaCache::updateImage( const pathParser P ) throw ( enum picasaCache::exceptionType ) { 
+void picasaCache::updateImage( const pathParser P ) throw ( enum picasaCache::exceptionType ) {
   cacheElement c;
 
   try {
-  
+
   if ( ! getFromCache( P, c ) ) {
     throw OBJECT_DOES_NOT_EXIST;
   }
-  
+
   if ( c.localChanges ) {
     localChange( P );
     return;
@@ -848,7 +848,7 @@ void picasaCache::updateImage( const pathParser P ) throw ( enum picasaCache::ex
   }
 
   if ( ! haveNetworkConnection ) throw NO_NETWORK_CONNECTION;
-  
+
   if ( ! photo->PULL_CHANGES() ) {
     LOG( LOG_ERROR, "Could not update photo "+P.getFullName()+". It was probably deleted on picasa." );
     lost_and_found( P );
@@ -862,9 +862,9 @@ void picasaCache::updateImage( const pathParser P ) throw ( enum picasaCache::ex
     LOG( LOG_NOTICE, "Downloaded " + photo->getPhotoURL() + "." );
   }
   c.fromPhoto( photo );
-  
+
  // If photoName changed, update the parent accordingly
-  if ( P.getImage() != c.name ) { 
+  if ( P.getImage() != c.name ) {
     cacheElement a;
     getFromCache( P.chop(), a );
     a.contents.erase( P.getImage() );
@@ -881,14 +881,14 @@ void picasaCache::updateImage( const pathParser P ) throw ( enum picasaCache::ex
   }
 }
 
-void picasaCache::updateUser ( const pathParser U ) throw ( enum picasaCache::exceptionType ) { 
+void picasaCache::updateUser ( const pathParser U ) throw ( enum picasaCache::exceptionType ) {
   set<picasaAlbum> albums;
   set<string> albumDirNames;
   if ( ! haveNetworkConnection ) throw NO_NETWORK_CONNECTION;
-  
-  try { 
+
+  try {
     albums = picasa->albumList( U.getUser() );
-  } catch ( enum picasaService::exceptionType ex ) { 
+  } catch ( enum picasaService::exceptionType ex ) {
     LOG(LOG_ERROR, "User "+U.getUser()+" not a valid Picasa account ?" );
     // We remove the user from the cache, if it was present.
     // (we assume it has no local changes, since we
@@ -905,11 +905,11 @@ void picasaCache::updateUser ( const pathParser U ) throw ( enum picasaCache::ex
 
   struct cacheElement c,d;
   pathParser p;
-  
+
   /*
    * Add user to root directory
    */
-  
+
   p.parse( "/" );
   getFromCache( p, c );
   c.contents.insert( U.getUser() );
@@ -923,7 +923,7 @@ void picasaCache::updateUser ( const pathParser U ) throw ( enum picasaCache::ex
   for( set<picasaAlbum>::iterator a = albums.begin(); a != albums.end(); ++a )
     albumDirNames.insert( a->getTitle() );
 
- 
+
   /*
    * Add user directory to cache
    */
@@ -932,10 +932,10 @@ void picasaCache::updateUser ( const pathParser U ) throw ( enum picasaCache::ex
   if ( getFromCache( p, c ) ) { // If already present, we need to update it
     // Add already present unlisted albums to albumDirNames
     //FIXME: How do we know when an unlisted album has been deleted ?
-    for( set<string>::iterator a = c.contents.begin(); a != c.contents.end(); ++a ) { 
+    for( set<string>::iterator a = c.contents.begin(); a != c.contents.end(); ++a ) {
       if ( getFromCache( p + *a, d ) ) {
 	if ( ! d.picasaObj ) d.buildPicasaObj( picasa );
-	if ( d.picasaObj ) { 
+	if ( d.picasaObj ) {
 	  if ( boost::dynamic_pointer_cast<picasaAlbum,atomEntry>(d.picasaObj)->getAccessType() == picasaAlbum::UNLISTED ) {
 	    albumDirNames.insert( *a );
 	  }
@@ -956,7 +956,7 @@ void picasaCache::updateUser ( const pathParser U ) throw ( enum picasaCache::ex
   } else { // User not yet present in the cache
     c.contents = albumDirNames;
   }
-  
+
   c.world_readable=true;
   c.last_updated = time( NULL );
   putIntoCache( p, c );
@@ -972,7 +972,7 @@ void picasaCache::updateUser ( const pathParser U ) throw ( enum picasaCache::ex
   }
 }
 
-void picasaCache::pushChange( const pathParser p ) throw ( enum picasaCache::exceptionType ) { 
+void picasaCache::pushChange( const pathParser p ) throw ( enum picasaCache::exceptionType ) {
   struct cacheElement c;
   if ( ! getFromCache( p, c ) ) throw OBJECT_DOES_NOT_EXIST;
   if ( ! c.localChanges ) return;
@@ -995,7 +995,7 @@ void picasaCache::doUpdate( const pathParser p ) throw ( enum picasaCache::excep
   if ( ! haveNetworkConnection ) throw NO_NETWORK_CONNECTION;
   /* Object is already present in the cache */
   if ( getFromCache( p, c ) ) {
-    
+
     // If the cached version is recent, do nothing
     if ( now - c.last_updated < updateInterval ) {
 	stringstream estream;
@@ -1003,10 +1003,10 @@ void picasaCache::doUpdate( const pathParser p ) throw ( enum picasaCache::excep
 	LOG(LOG_DEBUG, estream.str());
 	return;
     };
-    
+
     stringstream estream;
 
-    switch( p.getType() ) { 
+    switch( p.getType() ) {
       case pathParser::IMAGE:
 	updateImage( p );
 	return;
@@ -1018,11 +1018,11 @@ void picasaCache::doUpdate( const pathParser p ) throw ( enum picasaCache::excep
 	return;
     }
   } else /* Object not cached yet at all */ {
-    if ( p.haveImage() ) { 
+    if ( p.haveImage() ) {
       doUpdate( p.chop() );
       updateImage( p );
     }
-    if ( p.haveAlbum() ) { 
+    if ( p.haveAlbum() ) {
       doUpdate( p.chop() );
       updateAlbum( p );
     }
@@ -1128,7 +1128,7 @@ void picasaCache::sync() {
     local_change_queue.pop_front();
     try {
       pushChange( p );
-    } catch ( enum picasaCache::exceptionType ex ) {      
+    } catch ( enum picasaCache::exceptionType ex ) {
       switch( ex ) {
 	case NO_NETWORK_CONNECTION:
 	  LOG(LOG_ERROR, "Exception ("+exceptionString( ex ) + ") caught while doing update of "+p.getFullName()+": No network connection");
@@ -1170,17 +1170,17 @@ bool picasaCache::isCached( const pathParser &p ) {
   return isCached( p.getHash() );
 }
 
-void picasaCache::clearCache() { 
+void picasaCache::clearCache() {
   boost::mutex::scoped_lock l(cache_mutex);
   cache.clear();
 }
 
-void picasaCache::no_lock_removeFromCache( const pathParser &p ) { 
+void picasaCache::no_lock_removeFromCache( const pathParser &p ) {
   if ( p.isRoot() ) return;
   string key = p.getHash();
   if ( cache.find( key ) == cache.end() ) return;
   struct cacheElement c = cache[key];
-  switch( c.type ) { 
+  switch( c.type ) {
     case cacheElement::FILE:
       if ( c.generated != true ) {
 	try {
@@ -1208,7 +1208,7 @@ void picasaCache::lost_and_found( const pathParser &p ) {
   }
   removeFromCache( p );
 }
-void picasaCache::removeFromCache( const pathParser &p ) { 
+void picasaCache::removeFromCache( const pathParser &p ) {
   boost::mutex::scoped_lock cl(cache_mutex);
   boost::mutex::scoped_lock ql(update_queue_mutex);
   no_lock_removeFromCache( p );
@@ -1241,7 +1241,7 @@ string picasaCache::getXAttr( const pathParser &p, const string &attrName ) thro
   if ( attrName == "AuthKey" && p.getType() == pathParser::ALBUM ) {
     return boost::dynamic_pointer_cast<picasaAlbum,atomEntry>(c.picasaObj)->getAuthKey();
   }
-  string ret; 
+  string ret;
   try {
     ret = c.picasaObj->getAttr( attrName );
   } catch ( atomObj::exceptionType ) {
@@ -1250,7 +1250,7 @@ string picasaCache::getXAttr( const pathParser &p, const string &attrName ) thro
   return ret;
 }
 
-list<string> picasaCache::listXAttr( const pathParser &p ) throw (enum exceptionType) { 
+list<string> picasaCache::listXAttr( const pathParser &p ) throw (enum exceptionType) {
   cacheElement c;
   if ( ! getFromCache( p, c ) ) throw OBJECT_DOES_NOT_EXIST;
   list<string> ret;
@@ -1271,10 +1271,10 @@ int picasaCache::getAttr( const pathParser &path, struct stat *stBuf ) {
   struct cacheElement e;
   if ( ! getFromCache( path, e ) ) {
     // If we are not looking at a subdirectory of the root/user
-    // and the path is not cached it doesn't exist 
-    // (at least not now, maybe at some later point, 
+    // and the path is not cached it doesn't exist
+    // (at least not now, maybe at some later point,
     // when we update the parent directory)
-    switch ( path.getType() ) { 
+    switch ( path.getType() ) {
       case pathParser::USER:
 	try {
 	  doUpdate( path );
@@ -1299,7 +1299,7 @@ int picasaCache::getAttr( const pathParser &path, struct stat *stBuf ) {
     }
   }
   stBuf->st_size = e.size;
-  switch ( e.type ) { 
+  switch ( e.type ) {
 	  case cacheElement::DIRECTORY:
 		  stBuf->st_mode = S_IFDIR | S_IRUSR | S_IXUSR;
 		  if ( e.world_readable ) stBuf->st_mode |= S_IXGRP | S_IRGRP | S_IROTH | S_IXOTH;
@@ -1311,10 +1311,10 @@ int picasaCache::getAttr( const pathParser &path, struct stat *stBuf ) {
 		  if ( e.world_readable ) stBuf->st_mode |= S_IRGRP | S_IROTH;
 		  if ( e.writeable ) stBuf->st_mode |= S_IWUSR;
 		  stBuf->st_nlink = 1;
-		  if ( ! e.generated ) { 
+		  if ( ! e.generated ) {
 		    string fp = cacheDir + "/" + e.cachePath;
 		    struct stat myStat;
-		    if ( stat( fp.c_str(), &myStat ) == 0 ) { 
+		    if ( stat( fp.c_str(), &myStat ) == 0 ) {
 		      stBuf->st_size = myStat.st_size;
 		    }
 		  }
@@ -1343,7 +1343,7 @@ void picasaCache::unlink( const pathParser &p ) throw ( enum picasaCache::except
     priority_update_queue.clear();
     return;
   }
-    
+
   if ( p.getType() != pathParser::IMAGE ) throw OPERATION_NOT_SUPPORTED;
   if ( p.getUser() != picasa->getUser() ) throw ACCESS_DENIED;
   cacheElement c;
@@ -1373,13 +1373,13 @@ void picasaCache::unlink( const pathParser &p ) throw ( enum picasaCache::except
 }
 
 void picasaCache::rmdir( const pathParser &p ) throw ( enum picasaCache::exceptionType ) {
-  if ( p.isUser() ) { 
+  if ( p.isUser() ) {
     if ( p == controlDirPath ) throw OPERATION_NOT_SUPPORTED;
     removeFromCache( p );
     return;
-  } 
+  }
   if ( p.getUser() != picasa->getUser() ) throw ACCESS_DENIED;
-  if ( p.isAlbum() ) { 
+  if ( p.isAlbum() ) {
     cacheElement c;
     if ( ! getFromCache( p, c ) ) throw OBJECT_DOES_NOT_EXIST;
     if ( c.contents.size() > 0 ) throw OPERATION_FAILED;
@@ -1410,7 +1410,7 @@ void picasaCache::rmdir( const pathParser &p ) throw ( enum picasaCache::excepti
   throw OPERATION_NOT_SUPPORTED;
 }
 
-void picasaCache::create( const pathParser &p ) throw ( enum picasaCache::exceptionType ) { 
+void picasaCache::create( const pathParser &p ) throw ( enum picasaCache::exceptionType ) {
   cacheElement c;
   if ( p.getType() != pathParser::IMAGE ) {
     if ( p == syncPath ) picasaCache::sync();
@@ -1420,6 +1420,10 @@ void picasaCache::create( const pathParser &p ) throw ( enum picasaCache::except
   }
   if ( p.getUser() != picasa->getUser() ) throw ACCESS_DENIED;
   if ( ! getFromCache( p.chop(), c ) || ! getFromCache( p.chop().chop(), c ) || getFromCache( p, c ) ) throw OPERATION_FAILED;
+  if ( p.getImage().find(".directory.lock") != string::npos ) {
+      LOG( LOG_DEBUG, "Trying to create .directory.lock file, this is not implemented ("+p.getFullName()+").");
+      throw OPERATION_FAILED;
+  }
   LOG( LOG_DEBUG, "Creating "+p.getFullName()+"." );
   c.type=cacheElement::FILE;
   c.localChanges=true;
@@ -1463,8 +1467,8 @@ void picasaCache::my_open( const pathParser &p, int flags ) throw ( enum picasaC
       putIntoCache( p, c);
       return;
     }
-  }  
-  switch( p.getType() ) { 
+  }
+  switch( p.getType() ) {
     case pathParser::IMAGE:
       if ( p.getUser() == picasa->getUser() ) {
 	if ( c.write_fd == -1 ) {
@@ -1472,7 +1476,7 @@ void picasaCache::my_open( const pathParser &p, int flags ) throw ( enum picasaC
 	  c.write_fd = open( absPath.c_str() , flags );
 	  if ( c.write_fd > -1 ) num_of_open_fds++;
 	  putIntoCache( p, c);
-	} 
+	}
 	return;
       }
     default:
@@ -1480,11 +1484,11 @@ void picasaCache::my_open( const pathParser &p, int flags ) throw ( enum picasaC
       throw ACCESS_DENIED;
   }
 }
-      
-      
-      
+
+
+
 void picasaCache::my_mkdir( const pathParser &p ) throw ( enum picasaCache::exceptionType ) {
-  switch( p.getType() ) { 
+  switch( p.getType() ) {
     case pathParser::USER:
       throw UNIMPLEMENTED;
     case pathParser::IMAGE:
@@ -1512,9 +1516,9 @@ set<string> picasaCache::ls( const pathParser &path ) throw ( enum picasaCache::
   }
 }
 
-int fillBufFromString( string data, char *buf, size_t size, off_t offset ) { 
+int fillBufFromString( string data, char *buf, size_t size, off_t offset ) {
   int len = data.length();
-  if ( offset < len ) { 
+  if ( offset < len ) {
     if ( offset + size > len )
       size = len-offset;
     memcpy( buf, data.c_str() + offset, size );
@@ -1529,7 +1533,7 @@ int picasaCache::read( const pathParser &path, char *buf, size_t size, off_t off
     if ( e.generated ) {
       doUpdate( path );
       getFromCache( path, e);
-      if ( e.cachePath.size() > 0 ) { 
+      if ( e.cachePath.size() > 0 ) {
 	return fillBufFromString( e.cachePath, buf, size, offset );
       } else return fillBufFromString( "Data not yet available...\n", buf, size, offset );
     }
@@ -1573,7 +1577,7 @@ int picasaCache::my_write( const pathParser &path, const char *buf, size_t size,
   } else return -ENOENT;
 }
 
-void picasaCache::my_close( const pathParser &path ) { 
+void picasaCache::my_close( const pathParser &path ) {
   cacheElement e;
   stringstream ss;
   if ( getFromCache( path, e ) ) {

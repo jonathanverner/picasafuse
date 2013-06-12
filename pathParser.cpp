@@ -17,13 +17,13 @@
 
 using namespace std;
 
-list<string> chopString( const string &s, const char delimiter ) { 
+list<string> chopString( const string &s, const char delimiter ) {
   int pos = 0;
   string curSub = "";
   list<string> ret;
-  for( int pos = 0; pos < s.size(); ++pos ) { 
+  for( int pos = 0; pos < s.size(); ++pos ) {
     if ( s[pos] == delimiter ) {
-      if ( curSub.size() > 0 ) { 
+      if ( curSub.size() > 0 ) {
 	ret.push_back( curSub );
 	curSub = "";
       }
@@ -31,20 +31,20 @@ list<string> chopString( const string &s, const char delimiter ) {
       curSub +=s[pos];
     }
   }
-  if ( curSub.size() > 0 ) { 
+  if ( curSub.size() > 0 ) {
     ret.push_back(curSub);
   }
   return ret;
 }
 
 
-/* 
+/*
  * A valid path is of the form:
  *
  *   /[username[/[albumname[/[imagename]]]]]
  *
  */
-pathParser::pathParser( const std::string &path ): 
+pathParser::pathParser( const std::string &path ):
 	valid(false), hUser(false), hAlbum(false), hImage(false)
 {
   parse( path );
@@ -52,7 +52,7 @@ pathParser::pathParser( const std::string &path ):
 
 pathParser::pathParser( const char *path ):
 	valid(false), hUser(false), hAlbum(false), hImage(false)
-{ 
+{
   std::string p(path);
   parse( p );
 }
@@ -67,7 +67,7 @@ pathParser pathParser::chop() const {
   pathParser ret;
   if ( ! valid ) return ret;
   ret.valid=true;
-  switch( typ ) { 
+  switch( typ ) {
     case IMAGE:
       ret.albumName=albumName;
       ret.userName=userName;
@@ -103,7 +103,7 @@ pathParser pathParser::chop() const {
 }
 
 
-void pathParser::parse( const string &path ) { 
+void pathParser::parse( const string &path ) {
   list<string> componentList = chopString( path, '/' );
   typ = INVALID_OBJECT;
   valid = false;
@@ -150,8 +150,8 @@ void pathParser::parse( const string &path ) {
   else if ( hUser ) fullname=userName;
 }
 
-void pathParser::append( const std::string &path ) { 
-  if ( ! hUser ) { 
+void pathParser::append( const std::string &path ) {
+  if ( ! hUser ) {
     hUser = true;
     userName = path;
     hash=userName+"//";
@@ -159,7 +159,7 @@ void pathParser::append( const std::string &path ) {
     typ = pathParser::USER;
     return;
   }
-  if ( ! hAlbum ) { 
+  if ( ! hAlbum ) {
     hAlbum = true;
     albumName = path;
     hash=userName+"/"+albumName+"/";
@@ -167,7 +167,7 @@ void pathParser::append( const std::string &path ) {
     typ = pathParser::ALBUM;
     return;
   }
-  if ( ! hImage ) { 
+  if ( ! hImage ) {
     hImage = true;
     image = path;
     hash=userName+"/"+albumName+"/"+image;
@@ -177,8 +177,8 @@ void pathParser::append( const std::string &path ) {
   }
 }
 
-void pathParser::toParent() { 
-  if ( hImage ) { 
+void pathParser::toParent() {
+  if ( hImage ) {
     hImage = false;
     image = "";
     hash=userName+"/"+albumName+"/";
@@ -186,7 +186,7 @@ void pathParser::toParent() {
     typ = pathParser::ALBUM;
     return;
   }
-  if ( hAlbum ) { 
+  if ( hAlbum ) {
     hAlbum = false;
     albumName = "";
     hash=userName+"//";
@@ -194,7 +194,7 @@ void pathParser::toParent() {
     typ = pathParser::USER;
     return;
   }
-  if ( hUser ) { 
+  if ( hUser ) {
     hUser == false;
     userName = "";
     hash="//";
@@ -204,7 +204,7 @@ void pathParser::toParent() {
   }
 }
 
-std::string pathParser::getLastComponent() const { 
+std::string pathParser::getLastComponent() const {
   if ( hImage ) return image;
   if ( hAlbum ) return albumName;
   if ( hUser ) return userName;
@@ -212,7 +212,7 @@ std::string pathParser::getLastComponent() const {
 }
 
 
-bool pathParser::operator==( const pathParser &p ) const { 
+bool pathParser::operator==( const pathParser &p ) const {
   if ( p.hUser != hUser || p.hAlbum != hAlbum || p.hImage != hImage || p.valid != valid ) return false;
   return ( p.image == image && p.albumName == albumName && p.userName == userName );
 }
