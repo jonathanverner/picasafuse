@@ -677,6 +677,11 @@ void picasaCache::updateAlbum( const pathParser A ) throw ( enum picasaCache::ex
   }
   
   picasaAlbumPtr album = boost::dynamic_pointer_cast<picasaAlbum,atomEntry>(c.picasaObj);
+  if ( ! album ) {
+      LOG( LOG_ERROR, "Album "+A.getFullName()+" is not an ALBUM !!!")
+      removeFromCache( A );
+      throw UNEXPECTED_ERROR;
+  }
   if ( ! haveNetworkConnection ) throw NO_NETWORK_CONNECTION;
   if ( ! album->PULL_CHANGES() ) {
     LOG( LOG_WARN, "Album "+A.getFullName()+" probably deleted on Picasa. Moving it to .lost_and_found/"+A.getAlbum() );
