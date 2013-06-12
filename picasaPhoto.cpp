@@ -56,7 +56,7 @@ picasaPhoto::picasaPhoto( gAPI *API, const string &fileName, const string &album
   string myTitle = Title;
   if ( myTitle == "" ) {
     boost::filesystem::path pth( fileName );
-    myTitle = pth.filename();
+    myTitle = pth.filename().string();
   }
   hdrs.push_back("Slug: "+myTitle );
   if ( ! loadFromXML(api->POST_FILE( url, fileName, "image/jpeg", hdrs ) ) ) throw atomObj::ERROR_CREATING_OBJECT;
