@@ -65,6 +65,7 @@ void *curlRequest::getThreadCurlHandle() {
   boost::thread::id tID = boost::this_thread::get_id();
   if ( curl_handles.find( tID ) == curl_handles.end() ) { 
     ret = curl_easy_init();
+    curl_easy_setopt(ret, CURLOPT_NOSIGNAL, 1);
     handles_count++;
     if ( ret )
       curl_handles[tID] = ret;
