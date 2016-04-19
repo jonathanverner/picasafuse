@@ -1052,7 +1052,7 @@ void picasaCache::priority_worker() {
     } else {
       l.unlock();
       boost::xtime t;
-      boost::xtime_get(&t, boost::TIME_UTC);
+      boost::xtime_get(&t, boost::TIME_UTC_);
       t.sec+=10;
       try {
 	boost::this_thread::sleep(t);
@@ -1105,7 +1105,7 @@ void picasaCache::update_worker() {
     lc.unlock();
     if ( ! wtodo ) {
       boost::xtime t;
-      boost::xtime_get(&t, boost::TIME_UTC);
+      boost::xtime_get(&t, boost::TIME_UTC_);
       t.sec += 10;
       try {
 	boost::this_thread::sleep(t);
