@@ -20,6 +20,7 @@
 
 #include "picasaService.h"
 #include "picasaAlbum.h"
+#include "gAPI.h"
 
 using namespace std;
 
@@ -35,7 +36,10 @@ int main( int argc, char **argv ) {
   if ( argc == 4 ) password = argv[3];
   else password = getpass("Enter your password:");
   
-  picasaService service( email, password );
+
+  gAPI *api = new gAPI(email);
+  api->login(password);
+  picasaService service( api );
   picasaAlbum album = service.newAlbum( albumTitle );
   
   if ( album.PUSH_CHANGES() ) { 

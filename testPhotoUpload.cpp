@@ -23,6 +23,7 @@
 #include "picasaService.h"
 #include "picasaAlbum.h"
 #include "picasaPhoto.h"
+#include "gAPI.h"
 
 #include "convert.h"
 
@@ -40,13 +41,15 @@ int main( int argc, char **argv ) {
   password=getpass("Enter your password:");
  
 
-  picasaService service( email, password );
+  gAPI *api = new gAPI(email);
+  api->login(password);
+  picasaService service( api );
   picasaAlbum al = service.getAlbumByID( album, email );
   convert c;
   c.resize( 800000, photo, "/tmp/test_photo.jpg" );
   string comment = c.getComment( "/tmp/test_photo.jpg" );
   try {
-    picasaPhoto *p = al.addPhoto( "/tmp/test_photo.jpg", comment );
+    picasaPhotoPtr p = al.addPhoto( "/tmp/test_photo.jpg", comment );
     cout << "###############################################\n";
     cout << *p;
   } catch ( atomObj::exceptionType &ex ) {

@@ -23,6 +23,7 @@
 #include "picasaService.h"
 #include "picasaAlbum.h"
 #include "picasaPhoto.h"
+#include "gAPI.h"
 
 using namespace std;
 
@@ -42,13 +43,15 @@ int main( int argc, char **argv ) {
     authKey = argv[4];
   }
 
-  picasaService service( email, password );
+  gAPI *api = new gAPI(email);
+  api->login(password);
+  picasaService service( api );
   picasaAlbum al = service.getAlbumByID( album, user, authKey );
   cout << "###############################################\n";
   cout << "(as seen by "<<email<<")\n";
   cout << al;
-  list<picasaPhoto *> photos = al.getPhotos();
-  for(list<picasaPhoto *>::iterator p = photos.begin(); p != photos.end(); ++p ) { 
+  list<picasaPhotoPtr> photos = al.getPhotos();
+  for(list<picasaPhotoPtr>::iterator p = photos.begin(); p != photos.end(); ++p ) {
     cout << "---------------------\n";
     cout << **p;
   }

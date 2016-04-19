@@ -20,6 +20,7 @@
 
 #include "picasaService.h"
 #include "picasaAlbum.h"
+#include "gAPI.h"
 
 using namespace std;
 
@@ -34,7 +35,9 @@ int main( int argc, char **argv ) {
     email = argv[2];
     password=getpass("Enter your password:");
   }
-  picasaService service( email, password );
+  gAPI *api = new gAPI(email,"testAlbumList");
+  api->login(password);
+  picasaService service( api );
   set<picasaAlbum> albums  = service.albumList( user );
   cout << "###############################################\n";
   cout << "Album list for user " << user << "\n";
