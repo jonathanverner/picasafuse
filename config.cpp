@@ -1,6 +1,7 @@
 #include "config.h"
 
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <fstream>
 #include <sstream>
@@ -86,7 +87,9 @@ void picasaConfig::loadCF() {
       else if ( key == "maxPixels" ) ss >> maxPixels;
       else if ( key == "updateInterval" ) ss >> updateInterval;
       else if ( key == "offline" ) offline = (value == "true");
+#ifdef HAVE_DBUS
       else if ( key == "useKeyRing" ) useKeyRing = (value != "false" );
+#endif
     }
   }
 
